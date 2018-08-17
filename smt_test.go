@@ -10,7 +10,7 @@ func TestSparseMerkleTree(t *testing.T) {
     // config
 
     sm := NewSimpleMap()
-    value := []byte("The value needs to be 32 bytes!!!")
+    value := []byte("The value needs to be 32 bytes!!")
     h := sha256.New()
     h.Write([]byte("test-key"))
     key := h.Sum(nil)
@@ -33,15 +33,6 @@ func TestSparseMerkleTree(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
-
-
-    val, err = sm.Get(key)
-    if err != nil {
-        t.Error(err)
-    } else if bytes.Compare(val, value) != 0 {
-        t.Errorf("retrieved value \"%x\" does not match \"%x\"", val, value)
-    }
-
     val, err = smt.Get(key)
     if err != nil {
         t.Error(err)

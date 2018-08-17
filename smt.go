@@ -1,9 +1,8 @@
 // Package smt implements a Sparse Merkle tree.
 package smt
 
-import(
+import (
     "hash"
-    "fmt"
 )
 
 // SparseMerkleTree is a Sparse Merkle tree.
@@ -99,16 +98,15 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) (error) {
         path1 <<= 1
     }
     currentValue = value
-    fmt.Printf("%s\n",currentValue)
 
-    var newValue, currentHash []byte
+    var currentHash []byte
     for i := uint(0); i < smt.depth; i++ {
         if path2 & 1 == 1 {
-            newValue = append(sidenodes[len(sidenodes)-1], currentValue...)
+            currentValue = append(sidenodes[len(sidenodes)-1], currentValue...)
         } else {
-            newValue = append(currentValue, sidenodes[len(sidenodes)-1]...)
+            currentValue = append(currentValue, sidenodes[len(sidenodes)-1]...)
         }
-        smt.hasher.Write(newValue)
+        smt.hasher.Write(currentValue)
         currentHash = smt.hasher.Sum(nil)
         //fmt.Printf("key: %x\n",currentHash)
         //fmt.Printf("value: %x\n",currentValue)
@@ -119,5 +117,7 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) (error) {
         sidenodes = sidenodes[:len(sidenodes)-1]
         path2 >>= 1
     }
+    smt.root = currentHash
+
     return nil
 }
