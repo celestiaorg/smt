@@ -1,6 +1,6 @@
 # smt
 
-A library that implements a Sparse Merkle tree.
+A Go library that implements a Sparse Merkle tree.
 
 Status: incomplete.
 
