@@ -1,7 +1,7 @@
 // Package smt implements a Sparse Merkle tree.
 package smt
 
-import(
+import (
     "hash"
 )
 
@@ -39,8 +39,9 @@ func NewSparseMerkleTree(ms MapStore, defaultValue []byte, depth uint, hasher ha
 
 func keyToPath(key []byte) int {
     path := 0
-    for _, b := range(key) {
+    for _, b := range key {
         path = (path << 8) + int(b)
+        //fmt.Printf("path: %x\n",path)
     }
 
     return path
@@ -71,4 +72,52 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
     }
 
     return value, nil
+}
+
+func (smt *SparseMerkleTree) Update(key []byte, value []byte) (error) {
+    currentValue := make([]byte, len(smt.root))
+    copy(currentValue, smt.root)
+    path1 := keyToPath(key)
+    path2 := keyToPath(key)
+
+    sidenodes := make([][]byte, smt.depth)
+    for i := uint(0); i < smt.depth; i++ {
+        v, err := smt.ms.Get(currentValue)
+        if err != nil {
+            return err
+        }
+        if (path1 >> 255) & 1 == 1 {
+            copy(currentValue, v[32:])
+            sidenodes[i] = make([]byte, len(smt.root))
+            copy(sidenodes[i], v[:32])
+        } else {
+            copy(currentValue, v[:32])
+            sidenodes[i] = make([]byte, len(smt.root))
+            copy(sidenodes[i], v[32:])
+        }
+        path1 <<= 1
+    }
+    currentValue = value
+
+    var currentHash []byte
+    for i := uint(0); i < smt.depth; i++ {
+        if path2 & 1 == 1 {
+            currentValue = append(sidenodes[len(sidenodes)-1], currentValue...)
+        } else {
+            currentValue = append(currentValue, sidenodes[len(sidenodes)-1]...)
+        }
+        smt.hasher.Write(currentValue)
+        currentHash = smt.hasher.Sum(nil)
+        //fmt.Printf("key: %x\n",currentHash)
+        //fmt.Printf("value: %x\n",currentValue)
+        smt.ms.Put(currentHash, currentValue)
+
+        currentValue = make([]byte, len(currentHash))
+        copy(currentValue, currentHash)
+        sidenodes = sidenodes[:len(sidenodes)-1]
+        path2 >>= 1
+    }
+    smt.root = currentHash
+
+    return nil
 }
