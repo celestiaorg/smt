@@ -3,6 +3,7 @@ package smt
 import(
     "crypto/sha256"
     "testing"
+    "reflect"
 )
 
 func TestProofs(t *testing.T) {
@@ -49,5 +50,9 @@ func TestProofs(t *testing.T) {
     result = VerifyProof(proof, smt.root, []byte("testKey2"), []byte("badValue"), sha256.New())
     if result {
         t.Error("invalid proof verification returned true")
+    }
+
+    if !reflect.DeepEqual(proof, DecompactProof(CompactProof(proof, sha256.New()), sha256.New())) {
+        t.Error("compacting and decompacting proof returns a different proof than the original proof")
     }
 }
