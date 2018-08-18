@@ -135,3 +135,9 @@ func (smt *SparseMerkleTree) sideNodes(path []byte) ([][]byte, error) {
 
     return sideNodes, err
 }
+
+// Generate a Merkle proof for a key.
+func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
+    sideNodes, err := smt.sideNodes(smt.digest(key))
+    return sideNodes, err
+}
