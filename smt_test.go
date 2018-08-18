@@ -10,5 +10,8 @@ func TestSparseMerkleTree(t *testing.T) {
     sm := NewSimpleMap()
     smt := NewSparseMerkleTree(sm, []byte{0}, 256, h)
     h.Write([]byte("test"))
-    t.Log(smt.Get(h.Sum(nil)))
+    key := h.Sum(nil)
+    t.Log(smt.Get(key))
+    smt.Update(key, []byte("lol"))
+    t.Log(smt.Get(key))
 }
