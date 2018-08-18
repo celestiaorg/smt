@@ -19,8 +19,34 @@ func TestProofs(t *testing.T) {
     if !result {
         t.Error("valid proof failed to verify")
     }
-    proof[0][0] = byte(0)
+    result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("badValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+
+    smt.Update([]byte("testKey2"), []byte("testValue"))
+    proof, err = smt.Prove([]byte("testKey"))
+    if err != nil {
+        t.Error("error returned when trying to prove inclusion")
+    }
     result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("testValue"), sha256.New())
+    if !result {
+        t.Error("valid proof failed to verify")
+    }
+    result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("badValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    proof, err = smt.Prove([]byte("testKey2"))
+    if err != nil {
+        t.Error("error returned when trying to prove inclusion")
+        t.Log(err)
+    }
+    result = VerifyProof(proof, smt.root, []byte("testKey2"), []byte("testValue"), sha256.New())
+    if !result {
+        t.Error("valid proof failed to verify")
+    }
+    result = VerifyProof(proof, smt.root, []byte("testKey2"), []byte("badValue"), sha256.New())
     if result {
         t.Error("invalid proof verification returned true")
     }

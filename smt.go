@@ -93,10 +93,12 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) error {
     currentValue := currentHash
 
     for i := smt.depth() - 1; i >= 0; i-- {
+        sideNode := make([]byte, smt.keySize())
+        copy(sideNode, sideNodes[i])
         if hasBit(path, i) == right {
-            currentValue = append(sideNodes[i], currentValue...)
+            currentValue = append(sideNode, currentValue...)
         } else {
-            currentValue = append(currentValue, sideNodes[i]...)
+            currentValue = append(currentValue, sideNode...)
         }
         currentHash = smt.digest(currentValue)
         err := smt.ms.Put(currentHash, currentValue)
