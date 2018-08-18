@@ -9,7 +9,7 @@ import(
 func TestSimpleMap(t *testing.T) {
     sm := NewSimpleMap()
     h := sha256.New()
-    var val []byte
+    var value []byte
     var err error
 
     h.Write([]byte("test"))
@@ -25,8 +25,8 @@ func TestSimpleMap(t *testing.T) {
     if err != nil {
         t.Error("updating a key returned an error")
     }
-    val, err = sm.Get(h.Sum(nil))
-    if bytes.Compare(val, []byte("hello")) != 0 {
+    value, err = sm.Get(h.Sum(nil))
+    if bytes.Compare(value, []byte("hello")) != 0 {
         t.Error("failed to update key")
     }
 

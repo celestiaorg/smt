@@ -7,58 +7,72 @@ import(
 
 const left = 0
 const right = 1
+var defaultValue = []byte{0}
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
-    defaultValue []byte
-    depth int
     hasher hash.Hash
     ms MapStore
     root []byte
 }
 
 // Initialise a Sparse Merkle tree on an empty MapStore.
-func NewSparseMerkleTree(ms MapStore, defaultValue []byte, depth int, hasher hash.Hash) *SparseMerkleTree {
-    var currentValue, currentHash []byte
-    hasher.Write(defaultValue)
-    currentValue = hasher.Sum(nil)
-    ms.Put(currentValue, defaultValue)
-    for i := 0; i < depth; i++ {
-        currentValue = append(currentValue, currentValue...)
-        hasher.Write(currentValue)
-        currentHash = hasher.Sum(nil)
-        ms.Put(currentHash, currentValue)
-        currentValue = make([]byte, len(currentHash))
-        copy(currentValue, currentHash)
-    }
-
-    return &SparseMerkleTree{
-        defaultValue: defaultValue,
-        depth: depth,
+func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
+    smt := SparseMerkleTree{
         hasher: hasher,
         ms: ms,
-        root: currentHash,
     }
+
+    for i := 0; i < smt.depth() - 1; i++ {
+        ms.Put(smt.defaultNode(i), append(smt.defaultNode(i + 1), smt.defaultNode(i + 1)...))
+    }
+
+    ms.Put(smt.defaultNode(255), defaultValue)
+
+    rootValue := append(smt.defaultNode(0), smt.defaultNode(0)...)
+    rootHash := smt.digest(rootValue)
+    ms.Put(rootHash, rootValue)
+    smt.root = rootHash
+
+    return &smt
+}
+
+func (smt *SparseMerkleTree) depth() int {
+    return smt.keySize() * 8
+}
+
+func (smt *SparseMerkleTree) keySize() int {
+    return smt.hasher.Size()
+}
+
+func (smt *SparseMerkleTree) defaultNode(height int) []byte {
+    return defaultNodes(smt.hasher)[height]
+}
+
+func (smt *SparseMerkleTree) digest(data []byte) []byte {
+    smt.hasher.Write(data)
+    sum := smt.hasher.Sum(nil)
+    smt.hasher.Reset()
+    return sum
 }
 
 // Get gets a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
-    currentValue := make([]byte, len(smt.root))
-    copy(currentValue, smt.root)
-
-    for i := 0; i < smt.depth; i++ {
-        value, err := smt.ms.Get(currentValue)
+    path := smt.digest(key)
+    currentHash := smt.root
+    for i := 0; i < smt.depth(); i++ {
+        currentValue, err := smt.ms.Get(currentHash)
         if err != nil {
             return nil, err
         }
-        if hasBit(key, i) == right {
-            copy(currentValue, value[len(smt.root):])
+        if hasBit(path, i) == right {
+            currentHash = currentValue[smt.keySize():]
         } else {
-            copy(currentValue, value[:len(smt.root)])
+            currentHash = currentValue[:smt.keySize()]
         }
     }
 
-    value, err := smt.ms.Get(currentValue)
+    value, err := smt.ms.Get(currentHash)
     if err != nil {
         return nil, err
     }
@@ -68,26 +82,23 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 
 // Update sets a new value for a key in the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) error {
-    sideNodes, err := smt.sideNodes(key)
+    path := smt.digest(key)
+    sideNodes, err := smt.sideNodes(path)
     if err != nil {
         return err
     }
 
-    currentValue := value
-    smt.hasher.Write(currentValue)
-    currentHash := smt.hasher.Sum(nil)
-    smt.ms.Put(currentHash, currentValue)
-    currentValue = currentHash
+    currentHash := smt.digest(value)
+    smt.ms.Put(currentHash, value)
+    currentValue := currentHash
 
-    for i := smt.depth - 1; i >= 0; i-- {
-        sideNode := sideNodes[i]
-        if hasBit(key, i) == right {
-            currentValue = append(sideNode, currentValue...)
+    for i := smt.depth() - 1; i >= 0; i-- {
+        if hasBit(path, i) == right {
+            currentValue = append(sideNodes[i], currentValue...)
         } else {
-            currentValue = append(currentValue, sideNode...)
+            currentValue = append(currentValue, sideNodes[i]...)
         }
-        smt.hasher.Write(currentValue)
-        currentHash = smt.hasher.Sum(nil)
+        currentHash = smt.digest(currentValue)
         err := smt.ms.Put(currentHash, currentValue)
         if err != nil {
             return err
@@ -99,23 +110,23 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) error {
     return nil
 }
 
-func (smt *SparseMerkleTree) sideNodes(key []byte) ([][]byte, error) {
+func (smt *SparseMerkleTree) sideNodes(path []byte) ([][]byte, error) {
     currentValue, err := smt.ms.Get(smt.root)
     if err != nil {
         return nil, err
     }
 
-    sideNodes := make([][]byte, smt.depth)
-    for i := 0; i < smt.depth; i++ {
-        if hasBit(key, i) == right {
-            sideNodes[i] = []byte(currentValue[:len(smt.root)])
-            currentValue, err = smt.ms.Get(currentValue[len(smt.root):])
+    sideNodes := make([][]byte, smt.depth())
+    for i := 0; i < smt.depth(); i++ {
+        if hasBit(path, i) == right {
+            sideNodes[i] = currentValue[:smt.keySize()]
+            currentValue, err = smt.ms.Get(currentValue[smt.keySize():])
             if err != nil {
                 return nil, err
             }
         } else {
-            sideNodes[i] = []byte(currentValue[len(smt.root):])
-            currentValue, err = smt.ms.Get(currentValue[:len(smt.root)])
+            sideNodes[i] = currentValue[smt.keySize():]
+            currentValue, err = smt.ms.Get(currentValue[:smt.keySize()])
             if err != nil {
                 return nil, err
             }
