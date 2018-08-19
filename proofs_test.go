@@ -178,4 +178,26 @@ func TestProofs(t *testing.T) {
     if err == nil {
         t.Error("DecompactProof did not return error on bad proof size")
     }
+
+    proof, err = smt.ProveCompact([]byte("testKey2"))
+    if err != nil {
+        t.Error("error returned when trying to prove inclusion")
+        t.Log(err)
+    }
+    result = VerifyCompactProof(proof, smt.root, []byte("testKey2"), []byte("testValue"), sha256.New())
+    if !result {
+        t.Error("valid proof failed to verify")
+    }
+    result = VerifyCompactProof(proof, smt.root, []byte("testKey2"), []byte("badValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyCompactProof(proof, smt.root, []byte("testKey3"), []byte("testValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyCompactProof(badProof, smt.root, []byte("testKey"), []byte("testValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
 }

@@ -157,3 +157,13 @@ func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
     sideNodes, err := smt.sideNodes(smt.digest(key))
     return sideNodes, err
 }
+
+// Generate a compacted Merkle proof for a key.
+func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
+    proof, err := smt.Prove(key)
+    if err != nil {
+        return nil, err
+    }
+    compactedProof, err := CompactProof(proof, smt.hasher)
+    return compactedProof, err
+}

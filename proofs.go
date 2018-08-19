@@ -40,6 +40,15 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
     return bytes.Compare(currentHash, root) == 0
 }
 
+// VerifyProof verifies a compacted Merkle proof.
+func VerifyCompactProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+    decompactedProof, err := DecompactProof(proof, hasher)
+    if err != nil {
+        return false
+    }
+    return VerifyProof(decompactedProof, root, key, value, hasher)
+}
+
 // CompactProof compacts a proof, to reduce its size.
 func CompactProof(proof [][]byte, hasher hash.Hash) ([][]byte, error) {
     if len(proof) != hasher.Size() * 8 {
