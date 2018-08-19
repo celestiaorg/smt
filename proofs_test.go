@@ -111,4 +111,24 @@ func TestProofs(t *testing.T) {
     if !reflect.DeepEqual(proof, DecompactProof(CompactProof(proof, sha256.New()), sha256.New())) {
         t.Error("compacting and decompacting proof returns a different proof than the original proof")
     }
+
+    badProof2 := make([][]byte, sha256.New().Size() * 8 + 1)
+    for i := 0; i < len(badProof); i++ {
+        badProof[i] = make([]byte, sha256.New().Size())
+        rand.Read(badProof[i])
+    }
+    badProof3 := make([][]byte, sha256.New().Size() * 8 - 1)
+    for i := 0; i < len(badProof); i++ {
+        badProof[i] = make([]byte, sha256.New().Size())
+        rand.Read(badProof[i])
+    }
+
+    result = VerifyProof(badProof2, smt.root, []byte("testKey3"), defaultValue, sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyProof(badProof3, smt.root, []byte("testKey3"), defaultValue, sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
 }

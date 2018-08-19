@@ -15,6 +15,10 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
     currentHash := hasher.Sum(nil)
     hasher.Reset()
 
+    if len(proof) != hasher.Size() * 8 {
+        return false
+    }
+
     for i := hasher.Size() * 8 - 1; i >= 0; i-- {
         node := make([]byte, hasher.Size())
         copy(node, proof[i])
