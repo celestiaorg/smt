@@ -37,6 +37,16 @@ func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
     return &smt
 }
 
+// ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
+func ImportSparseMerkleTree(ms MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
+    smt := SparseMerkleTree{
+        hasher: hasher,
+        ms: ms,
+        root: root,
+    }
+    return &smt
+}
+
 // Root gets the root of the tree.
 func (smt *SparseMerkleTree) Root() []byte {
     return smt.root
