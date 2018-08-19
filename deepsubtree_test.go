@@ -12,6 +12,8 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
 
     smt.Update([]byte("testKey1"), []byte("testValue1"))
     smt.Update([]byte("testKey2"), []byte("testValue2"))
+    smt.Update([]byte("testKey3"), []byte("testValue3"))
+    smt.Update([]byte("testKey4"), []byte("testValue4"))
 
     proof1, _ := smt.Prove([]byte("testKey1"))
     proof2, _ := smt.Prove([]byte("testKey2"))
