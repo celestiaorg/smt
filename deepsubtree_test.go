@@ -55,6 +55,6 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
     smt.Update([]byte("testKey2"), []byte("testValue4"))
 
     if bytes.Compare(smt.Root(), dsmst.Root()) != 0 {
-        t.Error("roots of idential standard tree and subtree do not match")
+        t.Error("roots of identical standard tree and subtree do not match")
     }
 }
