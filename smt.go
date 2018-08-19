@@ -32,9 +32,19 @@ func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
     rootValue := append(smt.defaultNode(0), smt.defaultNode(0)...)
     rootHash := smt.digest(rootValue)
     ms.Put(rootHash, rootValue)
-    smt.root = rootHash
+    smt.SetRoot(rootHash)
 
     return &smt
+}
+
+// Root gets the root of the tree.
+func (smt *SparseMerkleTree) Root() []byte {
+    return smt.root
+}
+
+// SetRoot sets the root of the tree.
+func (smt *SparseMerkleTree) SetRoot(root []byte) {
+    smt.root = root
 }
 
 func (smt *SparseMerkleTree) depth() int {
@@ -59,7 +69,7 @@ func (smt *SparseMerkleTree) digest(data []byte) []byte {
 // Get gets a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
     path := smt.digest(key)
-    currentHash := smt.root
+    currentHash := smt.Root()
     for i := 0; i < smt.depth(); i++ {
         currentValue, err := smt.ms.Get(currentHash)
         if err != nil {
@@ -81,13 +91,17 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 }
 
 // Update sets a new value for a key in the tree.
-func (smt *SparseMerkleTree) Update(key []byte, value []byte) error {
+func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
     path := smt.digest(key)
     sideNodes, err := smt.sideNodes(path)
     if err != nil {
-        return err
+        return nil, err
     }
 
+    return smt.updateWithSideNodes(path, value, sideNodes)
+}
+
+func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte) ([]byte, error) {
     currentHash := smt.digest(value)
     smt.ms.Put(currentHash, value)
     currentValue := currentHash
@@ -103,17 +117,17 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) error {
         currentHash = smt.digest(currentValue)
         err := smt.ms.Put(currentHash, currentValue)
         if err != nil {
-            return err
+            return nil, err
         }
         currentValue = currentHash
     }
 
-    smt.root = currentHash
-    return nil
+    smt.SetRoot(currentHash)
+    return currentHash, nil
 }
 
 func (smt *SparseMerkleTree) sideNodes(path []byte) ([][]byte, error) {
-    currentValue, err := smt.ms.Get(smt.root)
+    currentValue, err := smt.ms.Get(smt.Root())
     if err != nil {
         return nil, err
     }

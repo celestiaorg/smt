@@ -20,7 +20,7 @@ func TestSparseMerkleTree(t *testing.T) {
         t.Error("did not get default value when getting empty key")
     }
 
-    err = smt.Update([]byte("testKey"), []byte("testValue"))
+    _, err = smt.Update([]byte("testKey"), []byte("testValue"))
     if err != nil {
         t.Error("returned error when updating empty key")
     }
@@ -32,7 +32,7 @@ func TestSparseMerkleTree(t *testing.T) {
         t.Error("did not get correct value when getting non-empty key")
     }
 
-    err = smt.Update([]byte("testKey"), []byte("testValue2"))
+    _, err = smt.Update([]byte("testKey"), []byte("testValue2"))
     if err != nil {
         t.Error("returned error when updating non-empty key")
     }
@@ -44,7 +44,7 @@ func TestSparseMerkleTree(t *testing.T) {
         t.Error("did not get correct value when getting non-empty key")
     }
 
-    err = smt.Update([]byte("testKey2"), []byte("testValue"))
+    _, err = smt.Update([]byte("testKey2"), []byte("testValue"))
     if err != nil {
         t.Error("returned error when updating empty second key")
     }
