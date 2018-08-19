@@ -200,4 +200,51 @@ func TestProofs(t *testing.T) {
     if result {
         t.Error("invalid proof verification returned true")
     }
+
+    root := smt.Root()
+    smt.Update([]byte("testKey2"), []byte("testValue2"))
+
+    proof, err = smt.ProveCompactForRoot([]byte("testKey2"), root)
+    if err != nil {
+        t.Error("error returned when trying to prove inclusion")
+        t.Log(err)
+    }
+    result = VerifyCompactProof(proof, root, []byte("testKey2"), []byte("testValue"), sha256.New())
+    if !result {
+        t.Error("valid proof failed to verify")
+    }
+    result = VerifyCompactProof(proof, root, []byte("testKey2"), []byte("badValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyCompactProof(proof, root, []byte("testKey3"), []byte("testValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyCompactProof(badProof, root, []byte("testKey"), []byte("testValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+
+    proof, err = smt.ProveForRoot([]byte("testKey2"), root)
+    if err != nil {
+        t.Error("error returned when trying to prove inclusion")
+        t.Log(err)
+    }
+    result = VerifyProof(proof, root, []byte("testKey2"), []byte("testValue"), sha256.New())
+    if !result {
+        t.Error("valid proof failed to verify")
+    }
+    result = VerifyProof(proof, root, []byte("testKey2"), []byte("badValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyProof(proof, root, []byte("testKey3"), []byte("testValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyProof(badProof, root, []byte("testKey"), []byte("testValue"), sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
 }
