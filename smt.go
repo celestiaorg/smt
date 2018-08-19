@@ -16,7 +16,7 @@ type SparseMerkleTree struct {
     root []byte
 }
 
-// Initialise a Sparse Merkle tree on an empty MapStore.
+// NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
 func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
     smt := SparseMerkleTree{
         hasher: hasher,
@@ -72,7 +72,7 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
     return value, err
 }
 
-// Get gets a key from the tree at a specific root.
+// GetForRoot gets a key from the tree at a specific root.
 func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
     path := smt.digest(key)
     currentHash := root
@@ -105,7 +105,7 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
     return newRoot, err
 }
 
-// Update sets a new value for a key in the tree at a specific root, and returns the new root.
+// UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
 func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
     path := smt.digest(key)
     sideNodes, err := smt.sideNodesForRoot(path, root)
@@ -167,19 +167,19 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
     return sideNodes, err
 }
 
-// Generate a Merkle proof for a key.
+// Prove generates a Merkle proof for a key.
 func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
     proof, err := smt.ProveForRoot(key, smt.Root())
     return proof, err
 }
 
-// Generate a Merkle proof for a key, at a specific root.
+// ProveForRoot generates a Merkle proof for a key, at a specific root.
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
     sideNodes, err := smt.sideNodesForRoot(smt.digest(key), root)
     return sideNodes, err
 }
 
-// Generate a compacted Merkle proof for a key.
+// ProveCompact generates a compacted Merkle proof for a key.
 func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
     proof, err := smt.Prove(key)
     if err != nil {
@@ -189,7 +189,7 @@ func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
     return compactedProof, err
 }
 
-// Generate a compacted Merkle proof for a key, at a specific root.
+// ProveCompactForRoot generates a compacted Merkle proof for a key, at a specific root.
 func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) ([][]byte, error) {
     proof, err := smt.ProveForRoot(key, root)
     if err != nil {

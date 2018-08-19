@@ -1,4 +1,3 @@
-// Package mapstore contains an interface and a simple in-memory implementation for a key-value store.
 package smt
 
 import(
@@ -37,9 +36,8 @@ func NewSimpleMap() *SimpleMap {
 func (sm *SimpleMap) Get(key []byte) ([]byte, error) {
     if value, ok := sm.m[string(key)]; ok {
         return value, nil
-    } else {
-        return nil, &InvalidKeyError{Key: key}
     }
+    return nil, &InvalidKeyError{Key: key}
 }
 
 // Put updates the value for a key.
@@ -54,7 +52,6 @@ func (sm *SimpleMap) Del(key []byte) error {
     if ok {
         delete(sm.m, string(key))
         return nil
-    } else{
-        return &InvalidKeyError{Key: key}
     }
+    return &InvalidKeyError{Key: key}
 }
