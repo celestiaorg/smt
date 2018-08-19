@@ -63,4 +63,33 @@ func TestSparseMerkleTree(t *testing.T) {
     if bytes.Compare([]byte("testValue2"), value) != 0 {
         t.Error("did not get correct value when getting non-empty key")
     }
+
+    root := smt.Root()
+    smt.Update([]byte("testKey"), []byte("testValue3"))
+
+    value, err = smt.GetForRoot([]byte("testKey"), root)
+    if err != nil {
+        t.Error("returned error when getting non-empty key")
+    }
+    if bytes.Compare([]byte("testValue2"), value) != 0 {
+        t.Error("did not get correct value when getting non-empty key")
+    }
+
+    root, err = smt.UpdateForRoot([]byte("testKey3"), []byte("testValue4"), root)
+
+    value, err = smt.GetForRoot([]byte("testKey3"), root)
+    if err != nil {
+        t.Error("returned error when getting non-empty key")
+    }
+    if bytes.Compare([]byte("testValue4"), value) != 0 {
+        t.Error("did not get correct value when getting non-empty key")
+    }
+
+    value, err = smt.GetForRoot([]byte("testKey"), root)
+    if err != nil {
+        t.Error("returned error when getting non-empty key")
+    }
+    if bytes.Compare([]byte("testValue2"), value) != 0 {
+        t.Error("did not get correct value when getting non-empty key")
+    }
 }
