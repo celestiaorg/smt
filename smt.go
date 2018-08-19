@@ -68,8 +68,14 @@ func (smt *SparseMerkleTree) digest(data []byte) []byte {
 
 // Get gets a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
+    value, err := smt.GetForRoot(key, smt.Root())
+    return value, err
+}
+
+// Get gets a key from the tree at a specific root.
+func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
     path := smt.digest(key)
-    currentHash := smt.Root()
+    currentHash := root
     for i := 0; i < smt.depth(); i++ {
         currentValue, err := smt.ms.Get(currentHash)
         if err != nil {
@@ -90,15 +96,25 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
     return value, nil
 }
 
-// Update sets a new value for a key in the tree.
+// Update sets a new value for a key in the tree, returns the new root, and sets the new current root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
+    newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
+    if err == nil {
+        smt.SetRoot(newRoot)
+    }
+    return newRoot, err
+}
+
+// Update sets a new value for a key in the tree at a specific root, and returns the new root.
+func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
     path := smt.digest(key)
-    sideNodes, err := smt.sideNodes(path)
+    sideNodes, err := smt.sideNodesForRoot(path, root)
     if err != nil {
         return nil, err
     }
 
-    return smt.updateWithSideNodes(path, value, sideNodes)
+    newRoot, err := smt.updateWithSideNodes(path, value, sideNodes)
+    return newRoot, err
 }
 
 func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte) ([]byte, error) {
@@ -122,12 +138,11 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
         currentValue = currentHash
     }
 
-    smt.SetRoot(currentHash)
     return currentHash, nil
 }
 
-func (smt *SparseMerkleTree) sideNodes(path []byte) ([][]byte, error) {
-    currentValue, err := smt.ms.Get(smt.Root())
+func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, error) {
+    currentValue, err := smt.ms.Get(root)
     if err != nil {
         return nil, err
     }
@@ -154,13 +169,29 @@ func (smt *SparseMerkleTree) sideNodes(path []byte) ([][]byte, error) {
 
 // Generate a Merkle proof for a key.
 func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
-    sideNodes, err := smt.sideNodes(smt.digest(key))
+    proof, err := smt.ProveForRoot(key, smt.Root())
+    return proof, err
+}
+
+// Generate a Merkle proof for a key, at a specific root.
+func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
+    sideNodes, err := smt.sideNodesForRoot(smt.digest(key), root)
     return sideNodes, err
 }
 
 // Generate a compacted Merkle proof for a key.
 func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
     proof, err := smt.Prove(key)
+    if err != nil {
+        return nil, err
+    }
+    compactedProof, err := CompactProof(proof, smt.hasher)
+    return compactedProof, err
+}
+
+// Generate a compacted Merkle proof for a key, at a specific root.
+func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) ([][]byte, error) {
+    proof, err := smt.ProveForRoot(key, root)
     if err != nil {
         return nil, err
     }
