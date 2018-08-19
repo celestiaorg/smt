@@ -92,4 +92,14 @@ func TestSparseMerkleTree(t *testing.T) {
     if bytes.Compare([]byte("testValue2"), value) != 0 {
         t.Error("did not get correct value when getting non-empty key")
     }
+
+    smt2 := ImportSparseMerkleTree(sm, sha256.New(), smt.Root())
+
+    value, err = smt2.Get([]byte("testKey"))
+    if err != nil {
+        t.Error("returned error when getting non-empty key")
+    }
+    if bytes.Compare([]byte("testValue3"), value) != 0 {
+        t.Error("did not get correct value when getting non-empty key")
+    }
 }
