@@ -14,6 +14,16 @@ func setBit(data []byte, position int) {
     data[position / 8] = byte(n)
 }
 
+func countSetBits(data []byte) int {
+    count := 0
+    for i := 0; i < len(data) * 8; i++ {
+        if hasBit(data, i) == 1 {
+            count++
+        }
+    }
+    return count
+}
+
 func emptyBytes(length int) []byte {
     b := make([]byte, length)
     return b

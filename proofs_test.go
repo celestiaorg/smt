@@ -108,7 +108,9 @@ func TestProofs(t *testing.T) {
         t.Error("invalid proof verification on empty key returned true")
     }
 
-    if !reflect.DeepEqual(proof, DecompactProof(CompactProof(proof, sha256.New()), sha256.New())) {
+    compactProof, err := CompactProof(proof, sha256.New())
+    decompactedProof, err := DecompactProof(compactProof, sha256.New())
+    if !reflect.DeepEqual(proof, decompactedProof) {
         t.Error("compacting and decompacting proof returns a different proof than the original proof")
     }
 
@@ -157,5 +159,23 @@ func TestProofs(t *testing.T) {
     result = VerifyProof(badProof6, smt.root, []byte("testKey3"), defaultValue, sha256.New())
     if result {
         t.Error("invalid proof verification returned true")
+    }
+
+    compactProof, err = CompactProof(badProof2, sha256.New())
+    if err == nil {
+        t.Error("CompactProof did not return error on bad proof size")
+    }
+    compactProof, err = CompactProof(badProof3, sha256.New())
+    if err == nil {
+        t.Error("CompactProof did not return error on bad proof size")
+    }
+
+    decompactedProof, err = DecompactProof(badProof3, sha256.New())
+    if err == nil {
+        t.Error("DecompactProof did not return error on bad proof size")
+    }
+    decompactedProof, err = DecompactProof([][]byte{}, sha256.New())
+    if err == nil {
+        t.Error("DecompactProof did not return error on bad proof size")
     }
 }
