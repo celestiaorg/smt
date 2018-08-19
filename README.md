@@ -1,6 +1,6 @@
 # smt
 
-A Go library that implements a Sparse Merkle tree.
+A Go library that implements a Sparse Merkle tree for a key-value map.
 
 [![Build Status](https://travis-ci.org/musalbas/smt.svg?branch=master)](https://travis-ci.org/musalbas/smt)
 [![Coverage Status](https://coveralls.io/repos/github/musalbas/smt/badge.svg?branch=master)](https://coveralls.io/github/musalbas/smt?branch=master)
@@ -20,7 +20,7 @@ import(
 )
 
 func main() {
-    // Initialise a new key-value store
+    // Initialise a new key-value store to store the nodes of the tree
     store := smt.NewSimpleMap()
     // Initialise the tree
     tree := smt.NewSparseMerkleTree(store, sha256.New())
