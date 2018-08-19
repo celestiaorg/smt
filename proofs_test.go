@@ -122,12 +122,39 @@ func TestProofs(t *testing.T) {
         badProof[i] = make([]byte, sha256.New().Size())
         rand.Read(badProof[i])
     }
+    badProof4 := make([][]byte, sha256.New().Size() * 8)
+    for i := 0; i < len(badProof); i++ {
+        badProof[i] = make([]byte, sha256.New().Size() - 1)
+        rand.Read(badProof[i])
+    }
+    badProof5 := make([][]byte, sha256.New().Size() * 8)
+    for i := 0; i < len(badProof); i++ {
+        badProof[i] = make([]byte, sha256.New().Size() + 1)
+        rand.Read(badProof[i])
+    }
+    badProof6 := make([][]byte, sha256.New().Size() * 8)
+    for i := 0; i < len(badProof); i++ {
+        badProof[i] = make([]byte, 1)
+        rand.Read(badProof[i])
+    }
 
     result = VerifyProof(badProof2, smt.root, []byte("testKey3"), defaultValue, sha256.New())
     if result {
         t.Error("invalid proof verification returned true")
     }
     result = VerifyProof(badProof3, smt.root, []byte("testKey3"), defaultValue, sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyProof(badProof4, smt.root, []byte("testKey3"), defaultValue, sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyProof(badProof5, smt.root, []byte("testKey3"), defaultValue, sha256.New())
+    if result {
+        t.Error("invalid proof verification returned true")
+    }
+    result = VerifyProof(badProof6, smt.root, []byte("testKey3"), defaultValue, sha256.New())
     if result {
         t.Error("invalid proof verification returned true")
     }

@@ -40,13 +40,13 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
 func CompactProof(proof [][]byte, hasher hash.Hash) [][]byte {
     bits := emptyBytes(hasher.Size())
     compactProof := make([][]byte, 0)
-    for i, node := range proof {
+    for i := 0; i < hasher.Size() * 8; i++ {
+        node := make([]byte, hasher.Size())
+        copy(node, proof[i])
         if bytes.Compare(node, defaultNodes(hasher)[i]) == 0 {
             setBit(bits, i)
         } else {
-            nodeCopy := make([]byte, hasher.Size())
-            copy(nodeCopy, node)
-            compactProof = append(compactProof, nodeCopy)
+            compactProof = append(compactProof, node)
         }
     }
     return append([][]byte{bits}, compactProof...)
