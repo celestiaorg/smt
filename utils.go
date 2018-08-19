@@ -14,13 +14,6 @@ func setBit(data []byte, position int) {
     data[position / 8] = byte(n)
 }
 
-func clearBit(data []byte, position int) {
-    n := int(data[position / 8])
-    mask := ^(1 << (uint(position) % 8))
-    n &= mask
-    data[position / 8] = byte(n)
-}
-
 func emptyBytes(length int) []byte {
     b := make([]byte, length)
     return b
