@@ -7,6 +7,8 @@ import(
 
 const left = 0
 const right = 1
+const nodePrefix byte = 0
+const leafPrefix byte = 1
 var defaultValue = []byte{0}
 
 // SparseMerkleTree is a Sparse Merkle tree.
@@ -30,7 +32,7 @@ func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
     ms.Put(smt.defaultNode(255), defaultValue)
 
     rootValue := append(smt.defaultNode(0), smt.defaultNode(0)...)
-    rootHash := smt.digest(rootValue)
+    rootHash := smt.digestNode(rootValue)
     ms.Put(rootHash, rootValue)
     smt.SetRoot(rootHash)
 
@@ -74,6 +76,14 @@ func (smt *SparseMerkleTree) digest(data []byte) []byte {
     sum := smt.hasher.Sum(nil)
     smt.hasher.Reset()
     return sum
+}
+
+func (smt *SparseMerkleTree) digestNode(data []byte) []byte {
+    return smt.digest(append([]byte{nodePrefix}, data...))
+}
+
+func (smt *SparseMerkleTree) digestLeaf(data []byte) []byte {
+    return smt.digest(append([]byte{leafPrefix}, data...))
 }
 
 // Get gets a key from the tree.
@@ -128,7 +138,7 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 }
 
 func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte) ([]byte, error) {
-    currentHash := smt.digest(value)
+    currentHash := smt.digestLeaf(value)
     smt.ms.Put(currentHash, value)
     currentValue := currentHash
 
@@ -140,7 +150,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
         } else {
             currentValue = append(currentValue, sideNode...)
         }
-        currentHash = smt.digest(currentValue)
+        currentHash = smt.digestNode(currentValue)
         err := smt.ms.Put(currentHash, currentValue)
         if err != nil {
             return nil, err

@@ -12,6 +12,7 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
     path := hasher.Sum(nil)
     hasher.Reset()
 
+    hasher.Write([]byte{leafPrefix})
     hasher.Write(value)
     currentHash := hasher.Sum(nil)
     hasher.Reset()
@@ -27,10 +28,12 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
             return false
         }
         if hasBit(path, i) == right {
+            hasher.Write([]byte{nodePrefix})
             hasher.Write(append(node, currentHash...))
             currentHash = hasher.Sum(nil)
             hasher.Reset()
         } else {
+            hasher.Write([]byte{nodePrefix})
             hasher.Write(append(currentHash, node...))
             currentHash = hasher.Sum(nil)
             hasher.Reset()
