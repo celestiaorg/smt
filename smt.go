@@ -7,8 +7,8 @@ import(
 
 const left = 0
 const right = 1
-const nodePrefix byte = 0
-const leafPrefix byte = 1
+const leafPrefix byte = 0
+const nodePrefix byte = 1
 var defaultValue = []byte{0}
 
 // SparseMerkleTree is a Sparse Merkle tree.
@@ -94,7 +94,7 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 
 // GetForRoot gets a key from the tree at a specific root.
 func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
-    path := smt.digest(key)
+    path := smt.digestLeaf(key)
     currentHash := root
     for i := 0; i < smt.depth(); i++ {
         currentValue, err := smt.ms.Get(currentHash)
@@ -127,7 +127,7 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 
 // UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
 func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
-    path := smt.digest(key)
+    path := smt.digestLeaf(key)
     sideNodes, err := smt.sideNodesForRoot(path, root)
     if err != nil {
         return nil, err
@@ -195,7 +195,7 @@ func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
 
 // ProveForRoot generates a Merkle proof for a key, at a specific root.
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
-    sideNodes, err := smt.sideNodesForRoot(smt.digest(key), root)
+    sideNodes, err := smt.sideNodesForRoot(smt.digestLeaf(key), root)
     return sideNodes, err
 }
 

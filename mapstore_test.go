@@ -17,6 +17,7 @@ func testSimpleMap(t *testing.T, hasher hash.Hash) {
     var value []byte
     var err error
 
+    h.Write([]byte{leafPrefix})
     h.Write([]byte("test"))
 
     // Tests for Get

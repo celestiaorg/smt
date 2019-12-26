@@ -8,6 +8,7 @@ import(
 
 // VerifyProof verifies a Merkle proof.
 func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+    hasher.Write([]byte{leafPrefix})
     hasher.Write(key)
     path := hasher.Sum(nil)
     hasher.Reset()
