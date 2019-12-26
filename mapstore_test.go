@@ -1,14 +1,19 @@
 package smt
 
 import(
+    "hash"
     "bytes"
     "crypto/sha256"
     "testing"
 )
 
 func TestSimpleMap(t *testing.T) {
+    testSimpleMap(t, sha256.New())
+}
+
+func testSimpleMap(t *testing.T, hasher hash.Hash) {
     sm := NewSimpleMap()
-    h := sha256.New()
+    h := hasher
     var value []byte
     var err error
 

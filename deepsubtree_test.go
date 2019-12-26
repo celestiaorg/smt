@@ -1,14 +1,19 @@
 package smt
 
 import(
+    "hash"
     "crypto/sha256"
     "testing"
     "bytes"
 )
 
 func TestDeepSparseMerkleSubTree(t *testing.T) {
-    dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New())
-    smt := NewSparseMerkleTree(NewSimpleMap(), sha256.New())
+    testDeepSparseMerkleSubTree(t, sha256.New())
+}
+
+func testDeepSparseMerkleSubTree(t *testing.T, hasher hash.Hash) {
+    dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), hasher)
+    smt := NewSparseMerkleTree(NewSimpleMap(), hasher)
 
     smt.Update([]byte("testKey1"), []byte("testValue1"))
     smt.Update([]byte("testKey2"), []byte("testValue2"))

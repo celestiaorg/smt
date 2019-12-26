@@ -1,14 +1,19 @@
 package smt
 
 import(
+    "hash"
     "bytes"
     "crypto/sha256"
     "testing"
 )
 
 func TestSparseMerkleTree(t *testing.T) {
+    testSparseMerkleTree(t, sha256.New())
+}
+
+func testSparseMerkleTree(t *testing.T, hasher hash.Hash) {
     sm := NewSimpleMap()
-    smt := NewSparseMerkleTree(sm, sha256.New())
+    smt := NewSparseMerkleTree(sm, hasher)
     var value []byte
     var err error
 
@@ -93,7 +98,7 @@ func TestSparseMerkleTree(t *testing.T) {
         t.Error("did not get correct value when getting non-empty key")
     }
 
-    smt2 := ImportSparseMerkleTree(sm, sha256.New(), smt.Root())
+    smt2 := ImportSparseMerkleTree(sm, hasher, smt.Root())
 
     value, err = smt2.Get([]byte("testKey"))
     if err != nil {
