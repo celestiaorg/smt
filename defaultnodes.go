@@ -25,7 +25,9 @@ func defaultNodes(hasher hash.Hash) [][]byte {
         nodes[depth - 1] = bottom
 
         for i := depth - 1; i > 0; i-- {
-            hasher.Write(append(nodes[i], nodes[i]...))
+            hasher.Write(nodePrefix)
+            hasher.Write(nodes[i])
+            hasher.Write(nodes[i])
             nodes[i - 1] = hasher.Sum(nil)
             hasher.Reset()
         }

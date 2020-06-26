@@ -8,13 +8,10 @@ import(
 
 // VerifyProof verifies a Merkle proof.
 func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-    hasher.Write(key)
-    path := hasher.Sum(nil)
-    hasher.Reset()
+    th := newTreeHasher(hasher)
+    path := th.path(key)
 
-    hasher.Write(value)
-    currentHash := hasher.Sum(nil)
-    hasher.Reset()
+    currentHash := th.digestLeaf(path, value)
 
     if len(proof) != hasher.Size() * 8 {
         return false
@@ -27,13 +24,9 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
             return false
         }
         if hasBit(path, i) == right {
-            hasher.Write(append(node, currentHash...))
-            currentHash = hasher.Sum(nil)
-            hasher.Reset()
+            currentHash = th.digestNode(node, currentHash)
         } else {
-            hasher.Write(append(currentHash, node...))
-            currentHash = hasher.Sum(nil)
-            hasher.Reset()
+            currentHash = th.digestNode(currentHash, node)
         }
     }
 

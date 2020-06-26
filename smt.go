@@ -11,7 +11,7 @@ var defaultValue = []byte{0}
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
-    hasher hash.Hash
+    th treeHasher
     ms MapStore
     root []byte
 }
@@ -19,18 +19,18 @@ type SparseMerkleTree struct {
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
 func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
     smt := SparseMerkleTree{
-        hasher: hasher,
+        th: *newTreeHasher(hasher),
         ms: ms,
     }
 
     for i := 0; i < smt.depth() - 1; i++ {
-        ms.Put(smt.defaultNode(i), append(smt.defaultNode(i + 1), smt.defaultNode(i + 1)...))
+        ms.Put(smt.th.defaultNode(i), append(smt.th.defaultNode(i + 1), smt.th.defaultNode(i + 1)...))
     }
 
-    ms.Put(smt.defaultNode(255), defaultValue)
+    ms.Put(smt.th.defaultNode(255), defaultValue)
 
-    rootValue := append(smt.defaultNode(0), smt.defaultNode(0)...)
-    rootHash := smt.digest(rootValue)
+    rootValue := append(smt.th.defaultNode(0), smt.th.defaultNode(0)...)
+    rootHash := smt.th.digestNode(smt.th.defaultNode(0), smt.th.defaultNode(0))
     ms.Put(rootHash, rootValue)
     smt.SetRoot(rootHash)
 
@@ -40,7 +40,7 @@ func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
 // ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
 func ImportSparseMerkleTree(ms MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
     smt := SparseMerkleTree{
-        hasher: hasher,
+        th: *newTreeHasher(hasher),
         ms: ms,
         root: root,
     }
@@ -58,22 +58,7 @@ func (smt *SparseMerkleTree) SetRoot(root []byte) {
 }
 
 func (smt *SparseMerkleTree) depth() int {
-    return smt.keySize() * 8
-}
-
-func (smt *SparseMerkleTree) keySize() int {
-    return smt.hasher.Size()
-}
-
-func (smt *SparseMerkleTree) defaultNode(height int) []byte {
-    return defaultNodes(smt.hasher)[height]
-}
-
-func (smt *SparseMerkleTree) digest(data []byte) []byte {
-    smt.hasher.Write(data)
-    sum := smt.hasher.Sum(nil)
-    smt.hasher.Reset()
-    return sum
+    return smt.th.pathSize() * 8
 }
 
 // Get gets a key from the tree.
@@ -84,7 +69,7 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 
 // GetForRoot gets a key from the tree at a specific root.
 func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
-    path := smt.digest(key)
+    path := smt.th.path(key)
     currentHash := root
     for i := 0; i < smt.depth(); i++ {
         currentValue, err := smt.ms.Get(currentHash)
@@ -92,9 +77,9 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
             return nil, err
         }
         if hasBit(path, i) == right {
-            currentHash = currentValue[smt.keySize():]
+            currentHash = currentValue[smt.th.pathSize():]
         } else {
-            currentHash = currentValue[:smt.keySize()]
+            currentHash = currentValue[:smt.th.pathSize()]
         }
     }
 
@@ -117,7 +102,7 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 
 // UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
 func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
-    path := smt.digest(key)
+    path := smt.th.path(key)
     sideNodes, err := smt.sideNodesForRoot(path, root)
     if err != nil {
         return nil, err
@@ -128,19 +113,20 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 }
 
 func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte) ([]byte, error) {
-    currentHash := smt.digest(value)
+    currentHash := smt.th.digestLeaf(path, value)
     smt.ms.Put(currentHash, value)
     currentValue := currentHash
 
     for i := smt.depth() - 1; i >= 0; i-- {
-        sideNode := make([]byte, smt.keySize())
+        sideNode := make([]byte, smt.th.pathSize())
         copy(sideNode, sideNodes[i])
         if hasBit(path, i) == right {
             currentValue = append(sideNode, currentValue...)
+            currentHash = smt.th.digestNode(sideNode, currentValue)
         } else {
             currentValue = append(currentValue, sideNode...)
+            currentHash = smt.th.digestNode(currentValue, sideNode)
         }
-        currentHash = smt.digest(currentValue)
         err := smt.ms.Put(currentHash, currentValue)
         if err != nil {
             return nil, err
@@ -160,14 +146,14 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
     sideNodes := make([][]byte, smt.depth())
     for i := 0; i < smt.depth(); i++ {
         if hasBit(path, i) == right {
-            sideNodes[i] = currentValue[:smt.keySize()]
-            currentValue, err = smt.ms.Get(currentValue[smt.keySize():])
+            sideNodes[i] = currentValue[:smt.th.pathSize()]
+            currentValue, err = smt.ms.Get(currentValue[smt.th.pathSize():])
             if err != nil {
                 return nil, err
             }
         } else {
-            sideNodes[i] = currentValue[smt.keySize():]
-            currentValue, err = smt.ms.Get(currentValue[:smt.keySize()])
+            sideNodes[i] = currentValue[smt.th.pathSize():]
+            currentValue, err = smt.ms.Get(currentValue[:smt.th.pathSize()])
             if err != nil {
                 return nil, err
             }
@@ -185,7 +171,7 @@ func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
 
 // ProveForRoot generates a Merkle proof for a key, at a specific root.
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
-    sideNodes, err := smt.sideNodesForRoot(smt.digest(key), root)
+    sideNodes, err := smt.sideNodesForRoot(smt.th.path(key), root)
     return sideNodes, err
 }
 
@@ -195,7 +181,7 @@ func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
     if err != nil {
         return nil, err
     }
-    compactedProof, err := CompactProof(proof, smt.hasher)
+    compactedProof, err := CompactProof(proof, smt.th.hasher)
     return compactedProof, err
 }
 
@@ -205,6 +191,6 @@ func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) ([][]b
     if err != nil {
         return nil, err
     }
-    compactedProof, err := CompactProof(proof, smt.hasher)
+    compactedProof, err := CompactProof(proof, smt.th.hasher)
     return compactedProof, err
 }
