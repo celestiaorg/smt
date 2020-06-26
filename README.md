@@ -2,9 +2,9 @@
 
 A Go library that implements a Sparse Merkle tree for a key-value map.
 
-[![Build Status](https://travis-ci.org/musalbas/smt.svg?branch=master)](https://travis-ci.org/musalbas/smt)
-[![Coverage Status](https://coveralls.io/repos/github/musalbas/smt/badge.svg?branch=master)](https://coveralls.io/github/musalbas/smt?branch=master)
-[![GoDoc](https://godoc.org/github.com/musalbas/smt?status.svg)](https://godoc.org/github.com/musalbas/smt)
+[![Build Status](https://travis-ci.org/lazyledger/smt.svg?branch=master)](https://travis-ci.org/lazyledger/smt)
+[![Coverage Status](https://coveralls.io/repos/github/lazyledger/smt/badge.svg?branch=master)](https://coveralls.io/github/lazyledger/smt?branch=master)
+[![GoDoc](https://godoc.org/github.com/lazyledger/smt?status.svg)](https://godoc.org/github.com/lazyledger/smt)
 
 Thanks to Vitalik Buterin who provided the [original Python prototype](https://ethresear.ch/t/data-availability-proof-friendly-state-tree-transitions/1453/6) that some of this library is inspired from.
 
@@ -16,7 +16,7 @@ package main
 import(
     "fmt"
     "crypto/sha256"
-    "github.com/musalbas/smt"
+    "github.com/lazyledger/smt"
 )
 
 func main() {
