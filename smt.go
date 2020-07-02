@@ -3,12 +3,11 @@ package smt
 
 import (
 	"hash"
+	"bytes"
 )
 
 const left = 0
 const right = 1
-
-var defaultValue = []byte{0}
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
@@ -24,16 +23,7 @@ func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
 		ms: ms,
 	}
 
-	for i := 0; i < smt.depth()-1; i++ {
-		ms.Put(smt.th.defaultNode(i), append(smt.th.defaultNode(i+1), smt.th.defaultNode(i+1)...))
-	}
-
-	ms.Put(smt.th.defaultNode(255), defaultValue)
-
-	rootValue := append(smt.th.defaultNode(0), smt.th.defaultNode(0)...)
-	rootHash := smt.th.digestNode(smt.th.defaultNode(0), smt.th.defaultNode(0))
-	ms.Put(rootHash, rootValue)
-	smt.SetRoot(rootHash)
+	smt.SetRoot(smt.th.placeholderBytes())
 
 	return &smt
 }
@@ -51,6 +41,11 @@ func ImportSparseMerkleTree(ms MapStore, hasher hash.Hash, root []byte) *SparseM
 // Root gets the root of the tree.
 func (smt *SparseMerkleTree) Root() []byte {
 	return smt.root
+}
+
+// DefaultValue returns the default value of keys in the tree.
+func (smt *SparseMerkleTree) DefaultValue() []byte {
+	return smt.th.placeholderBytes()
 }
 
 // SetRoot sets the root of the tree.
@@ -81,6 +76,10 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 			currentHash = currentValue[smt.th.pathSize():]
 		} else {
 			currentHash = currentValue[:smt.th.pathSize()]
+		}
+
+		if bytes.Compare(currentHash, smt.th.placeholderBytes()) == 0 {
+			return smt.DefaultValue(), nil
 		}
 	}
 
@@ -177,7 +176,7 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, er
 }
 
 // ProveCompact generates a compacted Merkle proof for a key.
-func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
+/*func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
 	proof, err := smt.Prove(key)
 	if err != nil {
 		return nil, err
@@ -194,4 +193,4 @@ func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) ([][]b
 	}
 	compactedProof, err := CompactProof(proof, smt.th.hasher)
 	return compactedProof, err
-}
+}*/

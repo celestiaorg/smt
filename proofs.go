@@ -2,7 +2,7 @@ package smt
 
 import (
 	"bytes"
-	"errors"
+	//"errors"
 	"hash"
 )
 
@@ -13,14 +13,14 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
 
 	currentHash := th.digestLeaf(path, value)
 
-	if len(proof) != hasher.Size()*8 {
+	if len(proof) != th.pathSize()*8 {
 		return false
 	}
 
-	for i := hasher.Size()*8 - 1; i >= 0; i-- {
-		node := make([]byte, hasher.Size())
+	for i := th.pathSize()*8 - 1; i >= 0; i-- {
+		node := make([]byte, th.pathSize())
 		copy(node, proof[i])
-		if len(node) != hasher.Size() {
+		if len(node) != th.pathSize() {
 			return false
 		}
 		if hasBit(path, i) == right {
@@ -34,7 +34,7 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
-func VerifyCompactProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+/*func VerifyCompactProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
 	decompactedProof, err := DecompactProof(proof, hasher)
 	if err != nil {
 		return false
@@ -44,14 +44,12 @@ func VerifyCompactProof(proof [][]byte, root []byte, key []byte, value []byte, h
 
 // CompactProof compacts a proof, to reduce its size.
 func CompactProof(proof [][]byte, hasher hash.Hash) ([][]byte, error) {
-	if len(proof) != hasher.Size()*8 {
-		return nil, errors.New("bad proof size")
-	}
+	th := newTreeHasher(hasher)
 
-	bits := emptyBytes(hasher.Size())
+	bits := emptyBytes(th.pathSize())
 	var compactProof [][]byte
-	for i := 0; i < hasher.Size()*8; i++ {
-		node := make([]byte, hasher.Size())
+	for i := 0; i < th.pathSize()*8; i++ {
+		node := make([]byte, th.pathSize())
 		copy(node, proof[i])
 		if bytes.Compare(node, defaultNodes(hasher)[i]) == 0 {
 			setBit(bits, i)
@@ -64,17 +62,19 @@ func CompactProof(proof [][]byte, hasher hash.Hash) ([][]byte, error) {
 
 // DecompactProof decompacts a proof, so that it can be used for VerifyProof.
 func DecompactProof(proof [][]byte, hasher hash.Hash) ([][]byte, error) {
+	th := newTreeHasher(hasher)
+
 	if len(proof) == 0 ||
-		len(proof[0]) != hasher.Size() ||
-		len(proof) != (hasher.Size()*8-countSetBits(proof[0]))+1 {
+		len(proof[0]) != th.pathSize() ||
+		len(proof) != (th.pathSize()*8-countSetBits(proof[0]))+1 {
 		return nil, errors.New("invalid proof size")
 	}
 
-	decompactedProof := make([][]byte, hasher.Size()*8)
+	decompactedProof := make([][]byte, th.pathSize()*8)
 	bits := proof[0]
 	compactProof := proof[1:]
 	position := 0
-	for i := 0; i < hasher.Size()*8; i++ {
+	for i := 0; i < th.pathSize()*8; i++ {
 		if hasBit(bits, i) == 1 {
 			decompactedProof[i] = defaultNodes(hasher)[i]
 		} else {
@@ -83,4 +83,4 @@ func DecompactProof(proof [][]byte, hasher hash.Hash) ([][]byte, error) {
 		}
 	}
 	return decompactedProof, nil
-}
+}*/

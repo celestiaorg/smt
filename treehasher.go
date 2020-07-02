@@ -2,6 +2,7 @@ package smt
 
 import (
 	"hash"
+	"bytes"
 )
 
 var leafPrefix = []byte{0}
@@ -52,6 +53,6 @@ func (th *treeHasher) pathSize() int {
 	return th.hasher.Size()
 }
 
-func (th *treeHasher) defaultNode(height int) []byte {
-	return defaultNodes(th.hasher)[height]
+func (th *treeHasher) placeholderBytes() []byte {
+	return bytes.Repeat([]byte{0}, th.pathSize())
 }
