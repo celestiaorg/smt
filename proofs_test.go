@@ -3,7 +3,7 @@ package smt
 import (
 	"crypto/sha256"
 	"math/rand"
-	//"reflect"
+	"reflect"
 	"testing"
 )
 
@@ -91,7 +91,7 @@ func TestProofs(t *testing.T) {
 		t.Error("error returned when trying to prove inclusion on empty key")
 		t.Log(err)
 	}
-	result = VerifyProof(proof, smt.root, []byte("testKey3"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(proof, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if !result {
 		t.Error("valid proof on empty key failed to verify")
 	}
@@ -99,7 +99,7 @@ func TestProofs(t *testing.T) {
 	if result {
 		t.Error("invalid proof verification on empty key returned true")
 	}
-	result = VerifyProof(proof, smt.root, []byte("testKey2"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(proof, smt.root, []byte("testKey2"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification on empty key returned true")
 	}
@@ -108,11 +108,11 @@ func TestProofs(t *testing.T) {
 		t.Error("invalid proof verification on empty key returned true")
 	}
 
-	/*compactProof, err := CompactProof(proof, sha256.New())
+	compactProof, err := CompactProof(proof, sha256.New())
 	decompactedProof, err := DecompactProof(compactProof, sha256.New())
 	if !reflect.DeepEqual(proof, decompactedProof) {
 		t.Error("compacting and decompacting proof returns a different proof than the original proof")
-	}*/
+	}
 
 	badProof2 := make([][]byte, sha256.New().Size()*8+1)
 	for i := 0; i < len(badProof); i++ {
@@ -140,28 +140,28 @@ func TestProofs(t *testing.T) {
 		rand.Read(badProof[i])
 	}
 
-	result = VerifyProof(badProof2, smt.root, []byte("testKey3"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(badProof2, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(badProof3, smt.root, []byte("testKey3"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(badProof3, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(badProof4, smt.root, []byte("testKey3"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(badProof4, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(badProof5, smt.root, []byte("testKey3"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(badProof5, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(badProof6, smt.root, []byte("testKey3"), smt.DefaultValue(), sha256.New())
+	result = VerifyProof(badProof6, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
 
-	/*compactProof, err = CompactProof(badProof2, sha256.New())
+	compactProof, err = CompactProof(badProof2, sha256.New())
 	if err == nil {
 		t.Error("CompactProof did not return error on bad proof size")
 	}
@@ -199,12 +199,12 @@ func TestProofs(t *testing.T) {
 	result = VerifyCompactProof(badProof, smt.root, []byte("testKey"), []byte("testValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
-	}*/
+	}
 
 	root := smt.Root()
 	smt.Update([]byte("testKey2"), []byte("testValue2"))
 
-	/*proof, err = smt.ProveCompactForRoot([]byte("testKey2"), root)
+	proof, err = smt.ProveCompactForRoot([]byte("testKey2"), root)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
 		t.Log(err)
@@ -224,7 +224,7 @@ func TestProofs(t *testing.T) {
 	result = VerifyCompactProof(badProof, root, []byte("testKey"), []byte("testValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
-	}*/
+	}
 
 	proof, err = smt.ProveForRoot([]byte("testKey2"), root)
 	if err != nil {

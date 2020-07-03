@@ -16,7 +16,7 @@ func TestSparseMerkleTree(t *testing.T) {
 	if err != nil {
 		t.Error("returned error when getting empty key")
 	}
-	if bytes.Compare(smt.DefaultValue(), value) != 0 {
+	if bytes.Compare(defaultValue, value) != 0 {
 		t.Error("did not get default value when getting empty key")
 	}
 
