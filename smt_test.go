@@ -1,6 +1,6 @@
 package smt
 
-import (
+/*import (
 	"bytes"
 	"crypto/sha256"
 	"testing"
@@ -102,4 +102,4 @@ func TestSparseMerkleTree(t *testing.T) {
 	if bytes.Compare([]byte("testValue3"), value) != 0 {
 		t.Error("did not get correct value when getting non-empty key")
 	}
-}
+}*/

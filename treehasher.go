@@ -2,6 +2,7 @@ package smt
 
 import (
 	"hash"
+	"bytes"
 )
 
 var leafPrefix = []byte{0}
@@ -39,6 +40,14 @@ func (th *treeHasher) digestLeaf(path []byte, value []byte) []byte {
 	return sum
 }
 
+func (th *treeHasher) isLeaf(data []byte) bool {
+	if bytes.Compare(data[:len(leafPrefix)], leafPrefix) == 0 {
+		return true
+	}
+
+	return false
+}
+
 func (th *treeHasher) digestNode(leftData []byte, rightData []byte) []byte {
 	th.hasher.Write(nodePrefix)
 	th.hasher.Write(leftData)
@@ -48,10 +57,14 @@ func (th *treeHasher) digestNode(leftData []byte, rightData []byte) []byte {
 	return sum
 }
 
+func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
+	return data[len(nodePrefix):th.pathSize()+len(nodePrefix)], data[len(nodePrefix)+th.pathSize():]
+}
+
 func (th *treeHasher) pathSize() int {
 	return th.hasher.Size()
 }
 
-func (th *treeHasher) defaultNode(height int) []byte {
-	return defaultNodes(th.hasher)[height]
+func (th *treeHasher) placeholder() []byte {
+	return bytes.Repeat([]byte{0}, th.pathSize())
 }

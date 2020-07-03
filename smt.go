@@ -3,12 +3,13 @@ package smt
 
 import (
 	"hash"
+	"bytes"
 )
 
 const left = 0
 const right = 1
 
-var defaultValue = []byte{0}
+var defaultValue = []byte{}
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
@@ -24,16 +25,7 @@ func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
 		ms: ms,
 	}
 
-	for i := 0; i < smt.depth()-1; i++ {
-		ms.Put(smt.th.defaultNode(i), append(smt.th.defaultNode(i+1), smt.th.defaultNode(i+1)...))
-	}
-
-	ms.Put(smt.th.defaultNode(255), defaultValue)
-
-	rootValue := append(smt.th.defaultNode(0), smt.th.defaultNode(0)...)
-	rootHash := smt.th.digestNode(smt.th.defaultNode(0), smt.th.defaultNode(0))
-	ms.Put(rootHash, rootValue)
-	smt.SetRoot(rootHash)
+	smt.SetRoot(smt.th.placeholder())
 
 	return &smt
 }
@@ -146,15 +138,22 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 
 	sideNodes := make([][]byte, smt.depth())
 	for i := 0; i < smt.depth(); i++ {
+		if bytes.Compare(currentValue, smt.th.placeholder()) == 0 || isLeaf(currentValue) {
+			// if we hit the placeholder value or a leaf, stop and return all the sidenodes so far
+			return sideNodes, err
+		}
+
 		if hasBit(path, i) == right {
-			sideNodes[i] = currentValue[:smt.th.pathSize()]
-			currentValue, err = smt.ms.Get(currentValue[smt.th.pathSize():])
+			leftNode, rightNode := smt.th.parseNode(currentValue)
+			sideNodes[i] = leftNode
+			currentValue, err = smt.ms.Get(rightNode)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			sideNodes[i] = currentValue[smt.th.pathSize():]
-			currentValue, err = smt.ms.Get(currentValue[:smt.th.pathSize()])
+			leftNode, rightNode := smt.th.parseNode(currentValue)
+			sideNodes[i] = rightNode
+			currentValue, err = smt.ms.Get(leftNode)
 			if err != nil {
 				return nil, err
 			}
@@ -176,7 +175,7 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, er
 	return sideNodes, err
 }
 
-// ProveCompact generates a compacted Merkle proof for a key.
+/*// ProveCompact generates a compacted Merkle proof for a key.
 func (smt *SparseMerkleTree) ProveCompact(key []byte) ([][]byte, error) {
 	proof, err := smt.Prove(key)
 	if err != nil {
@@ -194,4 +193,4 @@ func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) ([][]b
 	}
 	compactedProof, err := CompactProof(proof, smt.th.hasher)
 	return compactedProof, err
-}
+}*/

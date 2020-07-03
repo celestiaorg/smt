@@ -1,6 +1,6 @@
 package smt
 
-import (
+/*import (
 	"hash"
 )
 
@@ -28,4 +28,4 @@ func (dsmst *DeepSparseMerkleSubTree) AddBranches(proof [][]byte, key []byte, va
 		dsmst.SetRoot(newRoot)
 	}
 	return newRoot, err
-}
+}*/

@@ -1,6 +1,6 @@
 package smt
 
-import (
+/*import (
 	"bytes"
 	"errors"
 	"hash"
@@ -83,4 +83,4 @@ func DecompactProof(proof [][]byte, hasher hash.Hash) ([][]byte, error) {
 		}
 	}
 	return decompactedProof, nil
-}
+}*/
