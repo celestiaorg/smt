@@ -131,21 +131,26 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 }
 
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, error) {
+	sideNodes := make([][]byte, smt.depth())
+
+	if bytes.Equal(root, smt.th.placeholder()) || smt.th.isLeaf(root) {
+		return sideNodes, nil
+	}
+
 	currentValue, err := smt.ms.Get(root)
 	if err != nil {
 		return nil, err
 	}
 
-	sideNodes := make([][]byte, smt.depth())
 	for i := 0; i < smt.depth(); i++ {
-		if bytes.Compare(currentValue, smt.th.placeholder()) == 0 || isLeaf(currentValue) {
-			// if we hit the placeholder value or a leaf, stop and return all the sidenodes so far
-			return sideNodes, err
-		}
-
 		if hasBit(path, i) == right {
 			leftNode, rightNode := smt.th.parseNode(currentValue)
 			sideNodes[i] = leftNode
+
+			if bytes.Equal(rightNode, smt.th.placeholder()) || smt.th.isLeaf(rightNode) {
+				return sideNodes, nil
+			}
+
 			currentValue, err = smt.ms.Get(rightNode)
 			if err != nil {
 				return nil, err
@@ -153,6 +158,11 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		} else {
 			leftNode, rightNode := smt.th.parseNode(currentValue)
 			sideNodes[i] = rightNode
+
+			if bytes.Equal(leftNode, smt.th.placeholder()) || smt.th.isLeaf(leftNode) {
+				return sideNodes, nil
+			}
+
 			currentValue, err = smt.ms.Get(leftNode)
 			if err != nil {
 				return nil, err
