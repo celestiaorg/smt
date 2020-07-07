@@ -96,21 +96,36 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 // UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
 func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
 	path := smt.th.path(key)
-	sideNodes, err := smt.sideNodesForRoot(path, root)
+	sideNodes, oldLeaf, err := smt.sideNodesForRoot(path, root)
 	if err != nil {
 		return nil, err
 	}
 
-	newRoot, err := smt.updateWithSideNodes(path, value, sideNodes)
+	newRoot, err := smt.updateWithSideNodes(path, value, sideNodes, oldLeaf)
 	return newRoot, err
 }
 
-func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte) ([]byte, error) {
+func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte, oldLeaf []byte) ([]byte, error) {
 	currentHash := smt.th.digestLeaf(path, value)
 	smt.ms.Put(currentHash, value)
 	currentValue := currentHash
 
+	if smt.th.isLeaf(oldLeaf) {
+		oldValue, err := smt.ms.Get(oldLeaf)
+		if err != nil {
+			return nil, err
+		}
+		oldPath, _ := smt.th.parseLeaf(oldValue)
+		if !bytes.Equal(oldPath, path) {
+			// stuff
+		}
+	}
+
 	for i := smt.depth() - 1; i >= 0; i-- {
+		if sideNodes[i] == nil {
+			continue
+		}
+
 		sideNode := make([]byte, smt.th.pathSize())
 		copy(sideNode, sideNodes[i])
 		if hasBit(path, i) == right {
@@ -130,47 +145,52 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	return currentHash, nil
 }
 
-func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, error) {
+func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, error) {
 	sideNodes := make([][]byte, smt.depth())
 
 	if bytes.Equal(root, smt.th.placeholder()) || smt.th.isLeaf(root) {
-		return sideNodes, nil
+		return sideNodes, root, nil
 	}
 
 	currentValue, err := smt.ms.Get(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	var leafValue []byte
 	for i := 0; i < smt.depth(); i++ {
 		if hasBit(path, i) == right {
 			leftNode, rightNode := smt.th.parseNode(currentValue)
 			sideNodes[i] = leftNode
 
 			if bytes.Equal(rightNode, smt.th.placeholder()) || smt.th.isLeaf(rightNode) {
-				return sideNodes, nil
+				return sideNodes, rightNode, nil
 			}
 
 			currentValue, err = smt.ms.Get(rightNode)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+
+			leafValue = rightNode
 		} else {
 			leftNode, rightNode := smt.th.parseNode(currentValue)
 			sideNodes[i] = rightNode
 
 			if bytes.Equal(leftNode, smt.th.placeholder()) || smt.th.isLeaf(leftNode) {
-				return sideNodes, nil
+				return sideNodes, leftNode, nil
 			}
 
 			currentValue, err = smt.ms.Get(leftNode)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+
+			leafValue = leftNode
 		}
 	}
 
-	return sideNodes, err
+	return sideNodes, leafValue, err
 }
 
 // Prove generates a Merkle proof for a key.
@@ -181,7 +201,7 @@ func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
 
 // ProveForRoot generates a Merkle proof for a key, at a specific root.
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
-	sideNodes, err := smt.sideNodesForRoot(smt.th.path(key), root)
+	sideNodes, _, err := smt.sideNodesForRoot(smt.th.path(key), root)
 	return sideNodes, err
 }
 
