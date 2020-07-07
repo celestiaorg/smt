@@ -148,49 +148,42 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, error) {
 	sideNodes := make([][]byte, smt.depth())
 
-	if bytes.Equal(root, smt.th.placeholder()) || smt.th.isLeaf(root) {
+	if bytes.Equal(root, smt.th.placeholder()) {
 		return sideNodes, root, nil
 	}
 
 	currentValue, err := smt.ms.Get(root)
 	if err != nil {
 		return nil, nil, err
+	} else if smt.th.isLeaf(currentValue) {
+		return sideNodes, root, nil
 	}
 
-	var leafValue []byte
+	var leafHash []byte
 	for i := 0; i < smt.depth(); i++ {
+		leftNode, rightNode := smt.th.parseNode(currentValue)
+
 		if hasBit(path, i) == right {
-			leftNode, rightNode := smt.th.parseNode(currentValue)
 			sideNodes[i] = leftNode
-
-			if bytes.Equal(rightNode, smt.th.placeholder()) || smt.th.isLeaf(rightNode) {
-				return sideNodes, rightNode, nil
-			}
-
-			currentValue, err = smt.ms.Get(rightNode)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			leafValue = rightNode
+			leafHash = rightNode
 		} else {
-			leftNode, rightNode := smt.th.parseNode(currentValue)
 			sideNodes[i] = rightNode
+			leafHash = leftNode
+		}
 
-			if bytes.Equal(leftNode, smt.th.placeholder()) || smt.th.isLeaf(leftNode) {
-				return sideNodes, leftNode, nil
-			}
+		if bytes.Equal(leftNode, smt.th.placeholder()) {
+			return sideNodes, leafHash, nil
+		}
 
-			currentValue, err = smt.ms.Get(leftNode)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			leafValue = leftNode
+		currentValue, err = smt.ms.Get(leftNode)
+		if err != nil {
+			return nil, nil, err
+		} else if smt.th.isLeaf(currentValue) {
+			break
 		}
 	}
 
-	return sideNodes, leafValue, err
+	return sideNodes, leafHash, err
 }
 
 // Prove generates a Merkle proof for a key.
