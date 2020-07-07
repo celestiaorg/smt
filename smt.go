@@ -2,8 +2,8 @@
 package smt
 
 import (
-	"hash"
 	"bytes"
+	"hash"
 )
 
 const left = 0
