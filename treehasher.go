@@ -45,11 +45,7 @@ func (th *treeHasher) parseLeaf(data []byte) ([]byte, []byte) {
 }
 
 func (th *treeHasher) isLeaf(data []byte) bool {
-	if bytes.Compare(data[:len(leafPrefix)], leafPrefix) == 0 {
-		return true
-	}
-
-	return false
+	return bytes.Equal(data[:len(leafPrefix)], leafPrefix)
 }
 
 func (th *treeHasher) digestNode(leftData []byte, rightData []byte) []byte {
