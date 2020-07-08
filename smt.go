@@ -117,7 +117,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	currentValue := currentHash
 
 	// If the leaf node that sibling nodes lead to has a different actual path than the leaf node being updated, we need to create an intermediate node with this leaf node and the new leaf node as children.
-	commonPrefixCount := countCommonPrefix(path, actualPath)
+	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
 	if commonPrefixCount != smt.depth() {
 		if bytes.Compare(path, actualPath) > 0 {
 			currentHash = smt.th.digestNode(oldLeaf, currentValue)
@@ -136,12 +136,19 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	}
 
 	for i := smt.depth() - 1; i >= 0; i-- {
+		sideNode := make([]byte, smt.th.pathSize())
+
 		if sideNodes[i] == nil {
-			continue
+			if commonPrefixCount != smt.depth() && commonPrefixCount <= i {
+				// If there are no sidenodes at this height, and but the number of bits that the paths of the two leaf nodes share in common is greater than this height, then we need to build up the tree to this height with placeholder values at siblings.
+				copy(sideNode, smt.th.placeholder())
+			} else {
+				continue
+			}
+		} else {
+			copy(sideNode, sideNodes[i])
 		}
 
-		sideNode := make([]byte, smt.th.pathSize())
-		copy(sideNode, sideNodes[i])
 		if hasBit(path, i) == right {
 			currentHash = smt.th.digestNode(sideNode, currentValue)
 			currentValue = append(sideNode, currentValue...)
