@@ -64,7 +64,7 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
 	if bytes.Equal(root, smt.th.placeholder()) {
 		// The tree is empty, return the default value.
-		return smt.defaultValue()
+		return defaultValue, nil
 	}
 
 	path := smt.th.path(key)
@@ -87,7 +87,7 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 
 		if bytes.Equal(currentHash, smt.th.placeholder()) {
 			// We've hit a placeholder value; this is the end.
-			return smt.th.placeholder()
+			return defaultValue, nil
 		}
 	}
 
@@ -126,8 +126,8 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		// If the input value is the default value, then explicitly set the leaf hash to a placeholder.
 		currentHash = smt.th.placeholder()
 	} else {
-		currentHash := smt.th.digestLeaf(path, value)
-		smt.ms.Put(currentHash, value)
+		currentHash, preimage := smt.th.digestLeaf(path, value)
+		smt.ms.Put(currentHash, preimage)
 	}
 	currentValue := currentHash
 
@@ -135,11 +135,9 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
 	if commonPrefixCount != smt.depth() {
 		if bytes.Compare(path, actualPath) > 0 {
-			currentHash = smt.th.digestNode(oldLeaf, currentValue)
-			currentValue = append(oldLeaf, currentValue...)
+			currentHash, currentValue = smt.th.digestNode(oldLeaf, currentValue)
 		} else {
-			currentHash = smt.th.digestNode(currentValue, oldLeaf)
-			currentValue = append(currentValue, oldLeaf...)
+			currentHash, currentValue = smt.th.digestNode(currentValue, oldLeaf)
 		}
 
 		err := smt.ms.Put(currentHash, currentValue)
@@ -165,11 +163,9 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		}
 
 		if hasBit(path, i) == right {
-			currentHash = smt.th.digestNode(sideNode, currentValue)
-			currentValue = append(sideNode, currentValue...)
+			currentHash, currentValue = smt.th.digestNode(sideNode, currentValue)
 		} else {
-			currentHash = smt.th.digestNode(currentValue, sideNode)
-			currentValue = append(currentValue, sideNode...)
+			currentHash, currentValue = smt.th.digestNode(currentValue, sideNode)
 		}
 		err := smt.ms.Put(currentHash, currentValue)
 		if err != nil {

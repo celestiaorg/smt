@@ -31,13 +31,18 @@ func (th *treeHasher) path(key []byte) []byte {
 	return th.digest(key)
 }
 
-func (th *treeHasher) digestLeaf(path []byte, value []byte) []byte {
-	th.hasher.Write(leafPrefix)
-	th.hasher.Write(path)
+func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {
+	value := make([]byte, len(leafPrefix))
+	copy(value, leafPrefix)
+
+	value = append(value, path...)
+	value = append(value, leafData...)
+
 	th.hasher.Write(value)
 	sum := th.hasher.Sum(nil)
 	th.hasher.Reset()
-	return sum
+
+	return sum, value
 }
 
 func (th *treeHasher) parseLeaf(data []byte) ([]byte, []byte) {
@@ -48,13 +53,18 @@ func (th *treeHasher) isLeaf(data []byte) bool {
 	return bytes.Equal(data[:len(leafPrefix)], leafPrefix)
 }
 
-func (th *treeHasher) digestNode(leftData []byte, rightData []byte) []byte {
-	th.hasher.Write(nodePrefix)
-	th.hasher.Write(leftData)
-	th.hasher.Write(rightData)
+func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []byte) {
+	value := make([]byte, len(nodePrefix))
+	copy(value, nodePrefix)
+
+	value = append(value, leftData...)
+	value = append(value, rightData...)
+
+	th.hasher.Write(value)
 	sum := th.hasher.Sum(nil)
 	th.hasher.Reset()
-	return sum
+
+	return sum, value
 }
 
 func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
