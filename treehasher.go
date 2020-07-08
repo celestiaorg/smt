@@ -46,7 +46,7 @@ func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) 
 }
 
 func (th *treeHasher) parseLeaf(data []byte) ([]byte, []byte) {
-	return data[len(leafPrefix) : th.pathSize()+len(leafPrefix)], data[len(leafPrefix):th.pathSize()]
+	return data[len(leafPrefix) : th.pathSize()+len(leafPrefix)], data[len(leafPrefix)+th.pathSize():]
 }
 
 func (th *treeHasher) isLeaf(data []byte) bool {

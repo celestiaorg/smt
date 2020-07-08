@@ -3,6 +3,7 @@ package smt
 
 import (
 	"bytes"
+	"fmt"
 	"hash"
 )
 
@@ -70,12 +71,21 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	path := smt.th.path(key)
 	currentHash := root
 	for i := 0; i < smt.depth(); i++ {
+		fmt.Println(i)
 		currentValue, err := smt.ms.Get(currentHash)
+		fmt.Println(currentValue)
 		if err != nil {
 			return nil, err
 		} else if smt.th.isLeaf(currentValue) {
-			// We've reached the end.
-			return currentValue, nil
+			// We've reached the end. Is this the actual leaf?
+			p, v := smt.th.parseLeaf(currentValue)
+			if !bytes.Equal(path, p) {
+				// Nope. Therefore the key is actually empty.
+				return defaultValue, nil
+			} else {
+				// Yes. Return the value.
+				return v, nil
+			}
 		}
 
 		leftNode, rightNode := smt.th.parseNode(currentValue)
@@ -91,11 +101,12 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 		}
 	}
 
+	// The following lines of code should only be reached if the path is 256 nodes high, which should be very unlikely due to collision-resistance.
 	value, err := smt.ms.Get(currentHash)
 	if err != nil {
 		return nil, err
 	}
-
+	_, value = smt.th.parseLeaf(value)
 	return value, nil
 }
 
@@ -122,14 +133,15 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 
 func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte, oldLeaf []byte, actualPath []byte) ([]byte, error) {
 	var currentHash []byte
+	var currentValue []byte
 	if bytes.Equal(value, defaultValue) {
 		// If the input value is the default value, then explicitly set the leaf hash to a placeholder.
 		currentHash = smt.th.placeholder()
+		currentValue = currentHash
 	} else {
-		currentHash, preimage := smt.th.digestLeaf(path, value)
-		smt.ms.Put(currentHash, preimage)
+		currentHash, currentValue = smt.th.digestLeaf(path, value)
+		smt.ms.Put(currentHash, currentValue)
 	}
-	currentValue := currentHash
 
 	// If the leaf node that sibling nodes lead to has a different actual path than the leaf node being updated, we need to create an intermediate node with this leaf node and the new leaf node as children.
 	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
