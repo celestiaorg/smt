@@ -206,25 +206,25 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		return sideNodes, root, actualPath, nil
 	}
 
-	var leafHash []byte
+	var nodeHash []byte
 	for i := 0; i < smt.depth(); i++ {
 		leftNode, rightNode := smt.th.parseNode(currentValue)
 
 		// Get sidenode depending on whether the path bit is on or off.
 		if hasBit(path, i) == right {
 			sideNodes[i] = leftNode
-			leafHash = rightNode
+			nodeHash = rightNode
 		} else {
 			sideNodes[i] = rightNode
-			leafHash = leftNode
+			nodeHash = leftNode
 		}
 
 		if bytes.Equal(leftNode, smt.th.placeholder()) {
 			// If the node is a placeholder, we've reached the end.
-			return sideNodes, leafHash, path, nil
+			return sideNodes, nodeHash, path, nil
 		}
 
-		currentValue, err = smt.ms.Get(leftNode)
+		currentValue, err = smt.ms.Get(nodeHash)
 		if err != nil {
 			return nil, nil, nil, err
 		} else if smt.th.isLeaf(currentValue) {
@@ -234,7 +234,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 	}
 
 	actualPath, _ := smt.th.parseLeaf(currentValue) // Get the actual path of the leaf according to its value.
-	return sideNodes, leafHash, actualPath, err
+	return sideNodes, nodeHash, actualPath, err
 }
 
 // Prove generates a Merkle proof for a key.
