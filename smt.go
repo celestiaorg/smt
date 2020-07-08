@@ -62,17 +62,32 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 
 // GetForRoot gets a key from the tree at a specific root.
 func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
+	if bytes.Equal(root, smt.th.placeholder()) {
+		// The tree is empty, return the default value.
+		return smt.defaultValue()
+	}
+
 	path := smt.th.path(key)
 	currentHash := root
 	for i := 0; i < smt.depth(); i++ {
 		currentValue, err := smt.ms.Get(currentHash)
 		if err != nil {
 			return nil, err
+		} else if smt.th.isLeaf(currentValue) {
+			// We've reached the end.
+			return currentValue, nil
 		}
+
+		leftNode, rightNode := smt.th.parseNode(currentValue)
 		if hasBit(path, i) == right {
-			currentHash = currentValue[smt.th.pathSize():]
+			currentHash = rightNode
 		} else {
-			currentHash = currentValue[:smt.th.pathSize()]
+			currentHash = leftNode
+		}
+
+		if bytes.Equal(currentHash, smt.th.placeholder()) {
+			// We've hit a placeholder value; this is the end.
+			return smt.th.placeholder()
 		}
 	}
 
