@@ -57,12 +57,13 @@ func TestSparseMerkleTree(t *testing.T) {
 		t.Log(value)
 	}
 
-	/*value, err = smt.Get([]byte("testKey"))
+	value, err = smt.Get([]byte("testKey"))
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
 	if bytes.Compare([]byte("testValue2"), value) != 0 {
 		t.Error("did not get correct value when getting non-empty key")
+		t.Log(value)
 	}
 
 	root := smt.Root()
@@ -102,5 +103,5 @@ func TestSparseMerkleTree(t *testing.T) {
 	}
 	if bytes.Compare([]byte("testValue3"), value) != 0 {
 		t.Error("did not get correct value when getting non-empty key")
-	}*/
+	}
 }

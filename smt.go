@@ -3,7 +3,6 @@ package smt
 
 import (
 	"bytes"
-	"fmt"
 	"hash"
 )
 
@@ -71,9 +70,7 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	path := smt.th.path(key)
 	currentHash := root
 	for i := 0; i < smt.depth(); i++ {
-		fmt.Println(i)
 		currentValue, err := smt.ms.Get(currentHash)
-		fmt.Println(currentValue)
 		if err != nil {
 			return nil, err
 		} else if smt.th.isLeaf(currentValue) {
@@ -137,11 +134,11 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	if bytes.Equal(value, defaultValue) {
 		// If the input value is the default value, then explicitly set the leaf hash to a placeholder.
 		currentHash = smt.th.placeholder()
-		currentValue = currentHash
 	} else {
 		currentHash, currentValue = smt.th.digestLeaf(path, value)
 		smt.ms.Put(currentHash, currentValue)
 	}
+	currentValue = currentHash
 
 	// If the leaf node that sibling nodes lead to has a different actual path than the leaf node being updated, we need to create an intermediate node with this leaf node and the new leaf node as children.
 	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
@@ -164,7 +161,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		sideNode := make([]byte, smt.th.pathSize())
 
 		if sideNodes[i] == nil {
-			if commonPrefixCount != smt.depth() && commonPrefixCount <= i {
+			if commonPrefixCount != smt.depth() && commonPrefixCount > i {
 				// If there are no sidenodes at this height, and but the number of bits that the paths of the two leaf nodes share in common is greater than this height, then we need to build up the tree to this height with placeholder values at siblings.
 				copy(sideNode, smt.th.placeholder())
 			} else {
