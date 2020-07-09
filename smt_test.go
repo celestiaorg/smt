@@ -155,4 +155,11 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if bytes.Compare(defaultValue, value) != 0 {
 		t.Error("did not get default value when getting deleted key")
 	}
+	value, err = smt.Get([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if bytes.Compare([]byte("testValue"), value) != 0 {
+		t.Error("did not get correct value when getting non-empty key")
+	}
 }
