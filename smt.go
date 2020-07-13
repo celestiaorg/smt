@@ -153,11 +153,12 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 	var currentHash, currentValue []byte
 	nonPlaceholderReached := false
 	for i := smt.depth() - 1; i >= 0; i-- {
-		sideNode := make([]byte, smt.th.pathSize())
-		copy(sideNode, sideNodes[i])
-		if sideNode == nil {
+		if sideNodes[i] == nil {
 			continue
 		}
+
+		sideNode := make([]byte, smt.th.pathSize())
+		copy(sideNode, sideNodes[i])
 
 		if currentValue == nil {
 			// This is the leaf sibling that we need to bubble up the tree.
