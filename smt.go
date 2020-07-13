@@ -85,10 +85,9 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 			if !bytes.Equal(path, p) {
 				// Nope. Therefore the key is actually empty.
 				return defaultValue, nil
-			} else {
-				// Yes. Return the value.
-				return v, nil
 			}
+			// Otherwise, yes. Return the value.
+			return v, nil
 		}
 
 		leftNode, rightNode := smt.th.parseNode(currentValue)
