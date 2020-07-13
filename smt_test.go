@@ -64,14 +64,14 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	// Test updating a third empty key.
 	_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
 	if err != nil {
-		t.Errorf("returned error when updating empty second key: %v", err)
+		t.Errorf("returned error when updating empty third key: %v", err)
 	}
 	value, err = smt.Get([]byte("testKey2"))
 	if err != nil {
-		t.Errorf("returned error when getting non-empty second key: %v", err)
+		t.Errorf("returned error when getting non-empty third key: %v", err)
 	}
 	if bytes.Compare([]byte("testValue"), value) != 0 {
-		t.Error("did not get correct value when getting non-empty second key")
+		t.Error("did not get correct value when getting non-empty third key")
 	}
 	value, err = smt.Get([]byte("testKey"))
 	if err != nil {
