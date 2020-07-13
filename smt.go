@@ -161,6 +161,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 
 		if currentValue == nil {
 			// This is the leaf sibling that we need to bubble up the tree.
+			currentHash = sideNode
 			currentValue = sideNode
 			continue
 		}

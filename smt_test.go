@@ -119,6 +119,7 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when updating empty key: %v", err)
 	}
+	root1 := smt.Root()
 	smt.Update([]byte("testKey"), defaultValue)
 	if err != nil {
 		t.Errorf("returned error when deleting key: %v", err)
@@ -140,6 +141,9 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	}
 	if bytes.Compare([]byte("testValue"), value) != 0 {
 		t.Error("did not get correct value when getting non-empty key")
+	}
+	if !bytes.Equal(root1, smt.Root()) {
+		t.Error("tree root is not as expected after re-inserting key after deletion")
 	}
 
 	// Test inserting and deleting a second key.
@@ -165,6 +169,9 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if bytes.Compare([]byte("testValue"), value) != 0 {
 		t.Error("did not get correct value when getting non-empty key")
 	}
+	if !bytes.Equal(root1, smt.Root()) {
+		t.Error("tree root is not as expected after deleting second key")
+	}
 
 	// Test inserting and deleting a different second key, when the the first bits of the two keys in the tree are different (when using SHA256).
 	_, err = smt.Update([]byte("foo"), []byte("testValue"))
@@ -188,5 +195,8 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	}
 	if bytes.Compare([]byte("testValue"), value) != 0 {
 		t.Error("did not get correct value when getting non-empty key")
+	}
+	if !bytes.Equal(root1, smt.Root()) {
+		t.Error("tree root is not as expected after deleting second key")
 	}
 }
