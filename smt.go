@@ -203,9 +203,9 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
 	if commonPrefixCount != smt.depth() {
 		if bytes.Compare(path, actualPath) > 0 && right == 1 {
-			currentHash, currentValue = smt.th.digestNode(oldLeaf, currentValue)
-		} else {
 			currentHash, currentValue = smt.th.digestNode(currentValue, oldLeaf)
+		} else {
+			currentHash, currentValue = smt.th.digestNode(oldLeaf, currentValue)
 		}
 
 		err := smt.ms.Put(currentHash, currentValue)
