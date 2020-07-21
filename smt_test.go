@@ -312,7 +312,10 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 				largestCommonPrefix = commonPrefix
 			}
 		}
-		sideNodes, _, _, _ := smt.sideNodesForRoot(smt.th.path([]byte(k)), smt.Root())
+		sideNodes, _, _, err := smt.sideNodesForRoot(smt.th.path([]byte(k)), smt.Root())
+		if err != nil {
+			t.Errorf("error: %v", err)
+		}
 		numSideNodes := 0
 		for _, v := range sideNodes {
 			if v != nil {
