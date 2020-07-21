@@ -1,9 +1,9 @@
 package smt
 
-/*import (
+import (
 	"crypto/sha256"
 	"math/rand"
-	"reflect"
+	//"reflect"
 	"testing"
 )
 
@@ -12,9 +12,9 @@ func TestProofs(t *testing.T) {
 	smt := NewSparseMerkleTree(sm, sha256.New())
 	var err error
 
-	badProof := make([][]byte, sha256.New().Size()*8)
+	badProof := make([][]byte, smt.depth())
 	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, sha256.New().Size())
+		badProof[i] = make([]byte, smt.depth())
 		rand.Read(badProof[i])
 	}
 
@@ -28,7 +28,7 @@ func TestProofs(t *testing.T) {
 	if !result {
 		t.Error("valid proof failed to verify")
 	}
-	result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("badValue"), sha256.New())
+	/*result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("badValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -108,7 +108,7 @@ func TestProofs(t *testing.T) {
 		t.Error("invalid proof verification on empty key returned true")
 	}
 
-	compactProof, err := CompactProof(proof, sha256.New())
+	/*compactProof, err := CompactProof(proof, sha256.New())
 	decompactedProof, err := DecompactProof(compactProof, sha256.New())
 	if !reflect.DeepEqual(proof, decompactedProof) {
 		t.Error("compacting and decompacting proof returns a different proof than the original proof")
@@ -246,5 +246,5 @@ func TestProofs(t *testing.T) {
 	result = VerifyProof(badProof, root, []byte("testKey"), []byte("testValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
-	}
-}*/
+	}*/
+}

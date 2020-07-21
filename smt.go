@@ -316,7 +316,13 @@ func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
 // ProveForRoot generates a Merkle proof for a key, at a specific root.
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
 	sideNodes, _, _, err := smt.sideNodesForRoot(smt.th.path(key), root)
-	return sideNodes, err
+	var nonEmptySidesNodes [][]byte
+	for _, v := range sideNodes {
+		if v != nil {
+			nonEmptySidesNodes = append(nonEmptySidesNodes, v)
+		}
+	}
+	return nonEmptySidesNodes, err
 }
 
 /*// ProveCompact generates a compacted Merkle proof for a key.

@@ -1,8 +1,8 @@
 package smt
 
-/*import (
+import (
 	"bytes"
-	"errors"
+	//"errors"
 	"hash"
 )
 
@@ -11,22 +11,22 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
 	th := newTreeHasher(hasher)
 	path := th.path(key)
 
-	currentHash := th.digestLeaf(path, value)
+	currentHash, _ := th.digestLeaf(path, value)
 
-	if len(proof) != hasher.Size()*8 {
+	if len(proof) > th.pathSize()*8 {
 		return false
 	}
 
-	for i := hasher.Size()*8 - 1; i >= 0; i-- {
-		node := make([]byte, hasher.Size())
+	for i := len(proof) - 1; i >= 0; i-- {
+		node := make([]byte, th.pathSize())
 		copy(node, proof[i])
-		if len(node) != hasher.Size() {
+		if len(node) != th.pathSize() {
 			return false
 		}
 		if hasBit(path, i) == right {
-			currentHash = th.digestNode(node, currentHash)
+			currentHash, _ = th.digestNode(node, currentHash)
 		} else {
-			currentHash = th.digestNode(currentHash, node)
+			currentHash, _ = th.digestNode(currentHash, node)
 		}
 	}
 
@@ -34,7 +34,7 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
-func VerifyCompactProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+/*func VerifyCompactProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
 	decompactedProof, err := DecompactProof(proof, hasher)
 	if err != nil {
 		return false
