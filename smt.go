@@ -202,10 +202,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	// If the leaf node that sibling nodes lead to has a different actual path than the leaf node being updated, we need to create an intermediate node with this leaf node and the new leaf node as children.
 	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
 	if commonPrefixCount != smt.depth() {
-		if bytes.Compare(path, actualPath) > 0 && right == 1 {
-			currentHash, currentValue = smt.th.digestNode(currentValue, oldLeaf)
-		} else {
+		if hasBit(path, commonPrefixCount) == right {
 			currentHash, currentValue = smt.th.digestNode(oldLeaf, currentValue)
+		} else {
+			currentHash, currentValue = smt.th.digestNode(currentValue, oldLeaf)
 		}
 
 		err := smt.ms.Put(currentHash, currentValue)
