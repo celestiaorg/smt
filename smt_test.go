@@ -219,8 +219,14 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 
 // Test all tree operations in bulk.
 func TestSparseMerkleTree(t *testing.T) {
-	bulkOperations(t, 200, 100, 100, 50)
-	bulkOperations(t, 200, 100, 100, 500)
+	for i := 0; i < 5; i++ {
+		// Test more inserts/updates than deletions.
+		bulkOperations(t, 200, 100, 100, 50)
+	}
+	for i := 0; i < 5; i++ {
+		// Test extreme deletions.
+		bulkOperations(t, 200, 100, 100, 500)
+	}
 }
 
 // Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
