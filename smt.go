@@ -221,7 +221,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 
 		if sideNodes[i] == nil {
 			if commonPrefixCount != smt.depth() && commonPrefixCount > i {
-				// If there are no sidenodes at this height, and but the number of bits that the paths of the two leaf nodes share in common is greater than this height, then we need to build up the tree to this height with placeholder values at siblings.
+				// If there are no sidenodes at this height, but the number of bits that the paths of the two leaf nodes share in common is greater than this height, then we need to build up the tree to this height with placeholder values at siblings.
 				copy(sideNode, smt.th.placeholder())
 			} else {
 				continue
