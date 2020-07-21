@@ -222,7 +222,7 @@ func TestSparseMerkleTree(t *testing.T) {
 	bulkOperations(t, 200, 100, 100, 50)
 }
 
-// Test all tree operations in bulk, with different ratio probabilities of insert, update and delete.
+// Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
 func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
 	sm := NewSimpleMap()
 	smt := NewSparseMerkleTree(sm, sha256.New())
