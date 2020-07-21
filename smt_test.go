@@ -296,5 +296,31 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 		if !bytes.Equal([]byte(v), value) {
 			t.Error("got incorrect value when bulk testing operations")
 		}
+
+		if v == "" {
+			continue
+		}
+
+		// Check that the key is at the correct height in the tree.
+		largestCommonPrefix := 0
+		for k2, v2 := range *kv {
+			if v2 == "" {
+				continue
+			}
+			commonPrefix := countCommonPrefix(smt.th.path([]byte(k)), smt.th.path([]byte(k2)))
+			if commonPrefix != smt.depth() && commonPrefix > largestCommonPrefix {
+				largestCommonPrefix = commonPrefix
+			}
+		}
+		sideNodes, _, _, _ := smt.sideNodesForRoot(smt.th.path([]byte(k)), smt.Root())
+		numSideNodes := 0
+		for _, v := range sideNodes {
+			if v != nil {
+				numSideNodes += 1
+			}
+		}
+		if numSideNodes != largestCommonPrefix + 1 && (numSideNodes != 0 && largestCommonPrefix != 0) {
+			t.Error("leaf is at unexpected height")
+		}
 	}
 }
