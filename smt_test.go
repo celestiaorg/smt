@@ -319,7 +319,7 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 				numSideNodes += 1
 			}
 		}
-		if numSideNodes != largestCommonPrefix + 1 && (numSideNodes != 0 && largestCommonPrefix != 0) {
+		if numSideNodes != largestCommonPrefix+1 && (numSideNodes != 0 && largestCommonPrefix != 0) {
 			t.Error("leaf is at unexpected height")
 		}
 	}
