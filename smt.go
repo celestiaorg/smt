@@ -87,6 +87,10 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 				return defaultValue, nil
 			}
 			// Otherwise, yes. Return the value.
+			v, err = smt.ms.Get(v)
+			if err != nil {
+				return nil, err
+			}
 			return v, nil
 		}
 
@@ -109,6 +113,10 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 		return nil, err
 	}
 	_, value = smt.th.parseLeaf(value)
+	value, err = smt.ms.Get(value)
+	if err != nil {
+		return nil, err
+	}
 	return value, nil
 }
 
@@ -206,7 +214,9 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 }
 
 func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte, oldLeaf []byte, actualPath []byte) ([]byte, error) {
-	currentHash, currentValue := smt.th.digestLeaf(path, value)
+	valueHash := smt.th.digest(value)
+	smt.ms.Put(valueHash, value)
+	currentHash, currentValue := smt.th.digestLeaf(path, valueHash)
 	smt.ms.Put(currentHash, currentValue)
 	currentValue = currentHash
 

@@ -11,7 +11,7 @@ func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher h
 	th := newTreeHasher(hasher)
 	path := th.path(key)
 
-	currentHash, _ := th.digestLeaf(path, value)
+	currentHash, _ := th.digestLeaf(path, th.digest(value))
 
 	if len(proof) > th.pathSize()*8 {
 		return false
