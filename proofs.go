@@ -19,6 +19,7 @@ type SparseMerkleProof struct {
 func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
 	th := newTreeHasher(hasher)
 
+	// Sanity check inputs.
 	if len(proof.SideNodes) > th.pathSize()*8 || // Check that number of sidenodes is not greater than path size.
 		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) { // Check that leaf data is the correct size, before we parse it.
 		return false
