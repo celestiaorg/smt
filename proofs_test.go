@@ -12,11 +12,12 @@ func TestProofs(t *testing.T) {
 	smt := NewSparseMerkleTree(sm, sha256.New())
 	var err error
 
-	badProof := make([][]byte, smt.depth())
-	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, smt.depth())
-		rand.Read(badProof[i])
+	badSideNodes := make([][]byte, smt.depth())
+	for i := 0; i < len(badSideNodes); i++ {
+		badSideNodes[i] = make([]byte, smt.depth())
+		rand.Read(badSideNodes[i])
 	}
+	badProof := SparseMerkleProof{badSideNodes, nil}
 
 	smt.Update([]byte("testKey"), []byte("testValue"))
 
@@ -28,7 +29,7 @@ func TestProofs(t *testing.T) {
 	if !result {
 		t.Error("valid proof failed to verify")
 	}
-	/*result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("badValue"), sha256.New())
+	result = VerifyProof(proof, smt.root, []byte("testKey"), []byte("badValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
