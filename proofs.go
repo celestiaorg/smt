@@ -6,20 +6,48 @@ import (
 	"hash"
 )
 
+// SparseMerkleProof is a Merkle proof for a element in a SparseMerkleTree.
+type SparseMerkleProof struct {
+	// SideNodes is an array of the sibling nodes leading up to the leaf of the proof.
+	SideNodes [][]byte
+
+	// NonMembershipLeafData is the data of the unrelated leaf at the position of the key being proven, in the case of a non-membership proof.
+	NonMembershipLeafData []byte
+}
+
 // VerifyProof verifies a Merkle proof.
-func VerifyProof(proof [][]byte, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
 	th := newTreeHasher(hasher)
-	path := th.path(key)
 
-	currentHash, _ := th.digestLeaf(path, th.digest(value))
-
-	if len(proof) > th.pathSize()*8 {
+	if len(proof.SideNodes) > th.pathSize()*8 || // Check that number of sidenodes is not greater than path size.
+		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) { // Check that leaf data is the correct size, before we parse it.
 		return false
 	}
 
-	for i := len(proof) - 1; i >= 0; i-- {
+	path := th.path(key)
+
+	// Determine what the leaf hash should be.
+	var currentHash []byte
+	if bytes.Equal(value, defaultValue) { // Non-membership proof.
+		if proof.NonMembershipLeafData == nil { // Leaf is a placeholder value.
+			currentHash = th.placeholder()
+		} else { // Leaf is an unrelated leaf.
+			actualPath, dataHash := th.parseLeaf(proof.NonMembershipLeafData)
+			if bytes.Equal(actualPath, path) {
+				// This is not an unrelated leaf; non-membership proof failed.
+				return false
+			}
+			currentHash, _ = th.digestLeaf(actualPath, dataHash)
+		}
+	} else { // Membership proof.
+		dataHash := th.digest(value)
+		currentHash, _ = th.digestLeaf(path, dataHash)
+	}
+
+	// Recompute root.
+	for i := len(proof.SideNodes) - 1; i >= 0; i-- {
 		node := make([]byte, th.pathSize())
-		copy(node, proof[i])
+		copy(node, proof.SideNodes[i])
 		if len(node) != th.pathSize() {
 			return false
 		}

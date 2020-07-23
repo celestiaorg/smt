@@ -318,21 +318,40 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 }
 
 // Prove generates a Merkle proof for a key.
-func (smt *SparseMerkleTree) Prove(key []byte) ([][]byte, error) {
+func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
 	proof, err := smt.ProveForRoot(key, smt.Root())
 	return proof, err
 }
 
 // ProveForRoot generates a Merkle proof for a key, at a specific root.
-func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) ([][]byte, error) {
-	sideNodes, _, _, err := smt.sideNodesForRoot(smt.th.path(key), root)
-	var nonEmptySidesNodes [][]byte
+func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkleProof, error) {
+	path := smt.th.path(key)
+	sideNodes, leafHash, _, err := smt.sideNodesForRoot(path, root)
+
+	var nonEmptySideNodes [][]byte
 	for _, v := range sideNodes {
 		if v != nil {
-			nonEmptySidesNodes = append(nonEmptySidesNodes, v)
+			nonEmptySideNodes = append(nonEmptySideNodes, v)
 		}
 	}
-	return nonEmptySidesNodes, err
+
+	// Deal with non-membership proofs. If the leaf hash is the placeholder value, we do not need to add anything else to the proof.
+	var nonMembershipLeafData []byte
+	if !bytes.Equal(leafHash, smt.th.placeholder()) {
+		// This is a non-membership proof that involves showing a different leaf. Add the leaf data to the proof.
+		v, err := smt.ms.Get(leafHash)
+		if err != nil {
+			return SparseMerkleProof{}, err
+		}
+		nonMembershipLeafData = v
+	}
+
+	proof := SparseMerkleProof{
+		SideNodes:             nonEmptySideNodes,
+		NonMembershipLeafData: nonMembershipLeafData,
+	}
+
+	return proof, err
 }
 
 /*// ProveCompact generates a compacted Merkle proof for a key.
