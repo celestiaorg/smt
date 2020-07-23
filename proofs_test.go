@@ -3,7 +3,7 @@ package smt
 import (
 	"crypto/sha256"
 	"math/rand"
-	//"reflect"
+	"reflect"
 	"testing"
 )
 
@@ -17,7 +17,7 @@ func TestProofs(t *testing.T) {
 		badSideNodes[i] = make([]byte, smt.depth())
 		rand.Read(badSideNodes[i])
 	}
-	badProof := SparseMerkleProof{badSideNodes, nil}
+	badProof := SparseMerkleProof{SideNodes: badSideNodes}
 
 	smt.Update([]byte("testKey"), []byte("testValue"))
 
@@ -109,37 +109,46 @@ func TestProofs(t *testing.T) {
 		t.Error("invalid proof verification on empty key returned true")
 	}
 
-	/*compactProof, err := CompactProof(proof, sha256.New())
+	compactProof, err := CompactProof(proof, sha256.New())
 	decompactedProof, err := DecompactProof(compactProof, sha256.New())
 	if !reflect.DeepEqual(proof, decompactedProof) {
 		t.Error("compacting and decompacting proof returns a different proof than the original proof")
 	}
 
-	badProof2 := make([][]byte, sha256.New().Size()*8+1)
-	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, sha256.New().Size())
-		rand.Read(badProof[i])
+	badSideNodes2 := make([][]byte, sha256.New().Size()*8+1)
+	for i := 0; i < len(badSideNodes2); i++ {
+		badSideNodes2[i] = make([]byte, sha256.New().Size())
+		rand.Read(badSideNodes2[i])
 	}
-	badProof3 := make([][]byte, sha256.New().Size()*8-1)
-	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, sha256.New().Size())
-		rand.Read(badProof[i])
+	badProof2 := SparseMerkleProof{SideNodes: badSideNodes2}
+
+	badSideNodes3 := make([][]byte, sha256.New().Size()*8-1)
+	for i := 0; i < len(badSideNodes3); i++ {
+		badSideNodes3[i] = make([]byte, sha256.New().Size())
+		rand.Read(badSideNodes3[i])
 	}
-	badProof4 := make([][]byte, sha256.New().Size()*8)
-	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, sha256.New().Size()-1)
-		rand.Read(badProof[i])
+	badProof3 := SparseMerkleProof{SideNodes: badSideNodes3}
+
+	badSideNodes4 := make([][]byte, sha256.New().Size()*8)
+	for i := 0; i < len(badSideNodes4); i++ {
+		badSideNodes4[i] = make([]byte, sha256.New().Size()-1)
+		rand.Read(badSideNodes4[i])
 	}
-	badProof5 := make([][]byte, sha256.New().Size()*8)
-	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, sha256.New().Size()+1)
-		rand.Read(badProof[i])
+	badProof4 := SparseMerkleProof{SideNodes: badSideNodes4}
+
+	badSideNodes5 := make([][]byte, sha256.New().Size()*8)
+	for i := 0; i < len(badSideNodes5); i++ {
+		badSideNodes5[i] = make([]byte, sha256.New().Size()+1)
+		rand.Read(badSideNodes5[i])
 	}
-	badProof6 := make([][]byte, sha256.New().Size()*8)
-	for i := 0; i < len(badProof); i++ {
-		badProof[i] = make([]byte, 1)
-		rand.Read(badProof[i])
+	badProof5 := SparseMerkleProof{SideNodes: badSideNodes5}
+
+	badSideNodes6 := make([][]byte, sha256.New().Size()*8)
+	for i := 0; i < len(badSideNodes6); i++ {
+		badSideNodes6[i] = make([]byte, 1)
+		rand.Read(badSideNodes6[i])
 	}
+	badProof6 := SparseMerkleProof{SideNodes: badSideNodes6}
 
 	result = VerifyProof(badProof2, smt.root, []byte("testKey3"), defaultValue, sha256.New())
 	if result {
@@ -165,19 +174,6 @@ func TestProofs(t *testing.T) {
 	compactProof, err = CompactProof(badProof2, sha256.New())
 	if err == nil {
 		t.Error("CompactProof did not return error on bad proof size")
-	}
-	compactProof, err = CompactProof(badProof3, sha256.New())
-	if err == nil {
-		t.Error("CompactProof did not return error on bad proof size")
-	}
-
-	decompactedProof, err = DecompactProof(badProof3, sha256.New())
-	if err == nil {
-		t.Error("DecompactProof did not return error on bad proof size")
-	}
-	decompactedProof, err = DecompactProof([][]byte{}, sha256.New())
-	if err == nil {
-		t.Error("DecompactProof did not return error on bad proof size")
 	}
 
 	proof, err = smt.ProveCompact([]byte("testKey2"))
@@ -247,5 +243,5 @@ func TestProofs(t *testing.T) {
 	result = VerifyProof(badProof, root, []byte("testKey"), []byte("testValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
-	}*/
+	}
 }
