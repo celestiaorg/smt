@@ -15,17 +15,24 @@ type SparseMerkleProof struct {
 	NonMembershipLeafData []byte
 }
 
-// VerifyProof verifies a Merkle proof.
-func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-	th := newTreeHasher(hasher)
-
-	// Sanity check inputs.
+func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
+	// Do a basic sanity check on the proof, so that a malicious proof cannot cause the program to fatally exit or cause a CPU DoS attack.
 	if len(proof.SideNodes) > th.pathSize()*8 || // Check that number of sidenodes is not greater than path size.
 		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) { // Check that leaf data is the correct size, before we parse it.
 		return false
 	}
 
+	return true
+}
+
+// VerifyProof verifies a Merkle proof.
+func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+	th := newTreeHasher(hasher)
 	path := th.path(key)
+
+	if !proof.sanityCheck(th) {
+		return false
+	}
 
 	// Determine what the leaf hash should be.
 	var currentHash []byte
