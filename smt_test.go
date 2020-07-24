@@ -3,6 +3,8 @@ package smt
 import (
 	"bytes"
 	"crypto/sha256"
+	"hash"
+	"math/rand"
 	"testing"
 )
 
@@ -121,6 +123,53 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 }
 
+// Test tree operations when two leafs are immediate neighbours.
+func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
+	h := newDummyHasher(sha256.New())
+	sm := NewSimpleMap()
+	smt := NewSparseMerkleTree(sm, h)
+	var value []byte
+	var err error
+
+	// Make two neighbouring keys.
+	//
+	// The dummy hash function excepts keys to prefixed with four bytes of 0,
+	// which will cause it to return the preimage itself as the digest, without
+	// the first four bytes.
+	key1 := make([]byte, h.Size()+4)
+	rand.Read(key1)
+	key1[0], key1[1], key1[2], key1[3] = byte(0), byte(0), byte(0), byte(0)
+	key1[h.Size()+4-1] = byte(0)
+	key2 := make([]byte, h.Size()+4)
+	copy(key2, key1)
+	setBit(key2, (h.Size()+4)*8-1)
+
+	_, err = smt.Update(key1, []byte("testValue1"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key2, []byte("testValue2"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+
+	value, err = smt.Get(key1)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if bytes.Compare([]byte("testValue1"), value) != 0 {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+
+	value, err = smt.Get(key2)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if bytes.Compare([]byte("testValue2"), value) != 0 {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+}
+
 // Test base case tree delete operations with a few keys.
 func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	sm := NewSimpleMap()
@@ -215,4 +264,51 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if !bytes.Equal(root1, smt.Root()) {
 		t.Error("tree root is not as expected after deleting second key")
 	}
+}
+
+// dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
+type dummyHasher struct {
+	baseHasher hash.Hash
+	data       []byte
+}
+
+func newDummyHasher(baseHasher hash.Hash) hash.Hash {
+	return &dummyHasher{
+		baseHasher: baseHasher,
+	}
+}
+
+func (h *dummyHasher) Write(data []byte) (int, error) {
+	h.data = append(h.data, data...)
+	return len(data), nil
+}
+
+func (h *dummyHasher) Sum(prefix []byte) []byte {
+	preimage := make([]byte, len(h.data))
+	copy(preimage, h.data)
+	preimage = append(prefix, preimage...)
+
+	var digest []byte
+	// Keys should be prefixed with four bytes of value 0.
+	if bytes.Equal(preimage[:4], []byte{0, 0, 0, 0}) && len(preimage) == h.Size()+4 {
+		digest = preimage[4:]
+	} else {
+		h.baseHasher.Write(preimage)
+		digest = h.baseHasher.Sum(nil)
+		h.baseHasher.Reset()
+	}
+
+	return digest
+}
+
+func (h *dummyHasher) Reset() {
+	h.data = nil
+}
+
+func (h *dummyHasher) Size() int {
+	return h.baseHasher.Size()
+}
+
+func (h *dummyHasher) BlockSize() int {
+	return h.Size()
 }
