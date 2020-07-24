@@ -25,9 +25,9 @@ func NewDeepSparseMerkleSubTree(ms MapStore, hasher hash.Hash) *DeepSparseMerkle
 func (dsmst *DeepSparseMerkleSubTree) AddBranches(proof SparseMerkleProof, key []byte, value []byte, updateRoot bool) ([]byte, error) {
 	var oldLeaf, actualPath []byte
 	if proof.NonMembershipLeafData != nil {
-		var leafDataHash []byte
-		actualPath, leafDataHash = dsmst.th.parseLeaf(proof.NonMembershipLeafData)
-		oldLeaf, _ = dsmst.th.digestLeaf(actualPath, leafDataHash)
+		var valueHash []byte
+		actualPath, valueHash = dsmst.th.parseLeaf(proof.NonMembershipLeafData)
+		oldLeaf, _ = dsmst.th.digestLeaf(actualPath, valueHash)
 	}
 
 	sideNodes := make([][]byte, dsmst.depth())

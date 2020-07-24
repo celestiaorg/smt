@@ -72,16 +72,16 @@ func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte,
 		if proof.NonMembershipLeafData == nil { // Leaf is a placeholder value.
 			currentHash = th.placeholder()
 		} else { // Leaf is an unrelated leaf.
-			actualPath, dataHash := th.parseLeaf(proof.NonMembershipLeafData)
+			actualPath, valueHash := th.parseLeaf(proof.NonMembershipLeafData)
 			if bytes.Equal(actualPath, path) {
 				// This is not an unrelated leaf; non-membership proof failed.
 				return false
 			}
-			currentHash, _ = th.digestLeaf(actualPath, dataHash)
+			currentHash, _ = th.digestLeaf(actualPath, valueHash)
 		}
 	} else { // Membership proof.
-		dataHash := th.digest(value)
-		currentHash, _ = th.digestLeaf(path, dataHash)
+		valueHash := th.digest(value)
+		currentHash, _ = th.digestLeaf(path, valueHash)
 	}
 
 	// Recompute root.
