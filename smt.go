@@ -107,7 +107,8 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 		}
 	}
 
-	// The following lines of code should only be reached if the path is 256 nodes high, which should be very unlikely due to collision-resistance.
+	// The following lines of code should only be reached if the path is 256
+	// nodes high, which should be very unlikely due to collision-resistance.
 	value, err := smt.ms.Get(currentHash)
 	if err != nil {
 		return nil, err
@@ -120,7 +121,7 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	return value, nil
 }
 
-// Update sets a new value for a key in the tree, returns the new root, and sets the new current root of the tree.
+// Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
 	if err == nil {
@@ -187,10 +188,12 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 		}
 
 		if !nonPlaceholderReached && bytes.Equal(sideNode, smt.th.placeholder()) {
-			// We found another placeholder sibling node, keep going down the tree until we find the first sibling that is not a placeholder.
+			// We found another placeholder sibling node, keep going down the
+			// tree until we find the first sibling that is not a placeholder.
 			continue
 		} else if !nonPlaceholderReached {
-			// We found the first sibling node that is not a placeholder, it is time to insert our leaf sibling node here.
+			// We found the first sibling node that is not a placeholder, it is
+			// time to insert our leaf sibling node here.
 			nonPlaceholderReached = true
 		}
 
@@ -220,8 +223,13 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	smt.ms.Put(currentHash, currentValue)
 	currentValue = currentHash
 
-	// If the leaf node that sibling nodes lead to has a different actual path than the leaf node being updated, we need to create an intermediate node with this leaf node and the new leaf node as children.
-	commonPrefixCount := countCommonPrefix(path, actualPath) // Get the number of bits that the paths of the two leaf nodes share in common as a prefix.
+	// If the leaf node that sibling nodes lead to has a different actual path
+	// than the leaf node being updated, we need to create an intermediate node
+	// with this leaf node and the new leaf node as children.
+	//
+	// First, get the number of bits that the paths of the two leaf nodes share
+	// in common as a prefix.
+	commonPrefixCount := countCommonPrefix(path, actualPath)
 	if commonPrefixCount != smt.depth() {
 		if hasBit(path, commonPrefixCount) == right {
 			currentHash, currentValue = smt.th.digestNode(oldLeaf, currentValue)
@@ -242,7 +250,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 
 		if sideNodes[i] == nil {
 			if commonPrefixCount != smt.depth() && commonPrefixCount > i {
-				// If there are no sidenodes at this height, but the number of bits that the paths of the two leaf nodes share in common is greater than this height, then we need to build up the tree to this height with placeholder values at siblings.
+				// If there are no sidenodes at this height, but the number of
+				// bits that the paths of the two leaf nodes share in common is
+				// greater than this height, then we need to build up the tree
+				// to this height with placeholder values at siblings.
 				copy(sideNode, smt.th.placeholder())
 			} else {
 				continue
@@ -267,7 +278,8 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 }
 
 // Get all the sibling nodes (sidenodes) for a given path from a given root.
-// Returns an array of sibling nodes, the leaf hash found at that path and the actual path of that leaf according to its value.
+// Returns an array of sibling nodes, the leaf hash found at that path and the
+// actual path of that leaf according to its value.
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, []byte, error) {
 	sideNodes := make([][]byte, smt.depth())
 
@@ -313,7 +325,9 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		}
 	}
 
-	actualPath, _ := smt.th.parseLeaf(currentValue) // Get the actual path of the leaf according to its value.
+	// Get the actual path of the leaf according to its value.
+	actualPath, _ := smt.th.parseLeaf(currentValue)
+
 	return sideNodes, nodeHash, actualPath, err
 }
 
@@ -335,10 +349,12 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkle
 		}
 	}
 
-	// Deal with non-membership proofs. If the leaf hash is the placeholder value, we do not need to add anything else to the proof.
+	// Deal with non-membership proofs. If the leaf hash is the placeholder
+	// value, we do not need to add anything else to the proof.
 	var nonMembershipLeafData []byte
 	if !bytes.Equal(leafHash, smt.th.placeholder()) {
-		// This is a non-membership proof that involves showing a different leaf. Add the leaf data to the proof.
+		// This is a non-membership proof that involves showing a different leaf.
+		// Add the leaf data to the proof.
 		v, err := smt.ms.Get(leafHash)
 		if err != nil {
 			return SparseMerkleProof{}, err

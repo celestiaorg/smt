@@ -12,19 +12,27 @@ type SparseMerkleProof struct {
 	// SideNodes is an array of the sibling nodes leading up to the leaf of the proof.
 	SideNodes [][]byte
 
-	// NonMembershipLeafData is the data of the unrelated leaf at the position of the key being proven, in the case of a non-membership proof.
+	// NonMembershipLeafData is the data of the unrelated leaf at the position
+	// of the key being proven, in the case of a non-membership proof.
 	NonMembershipLeafData []byte
 
-	// BitMask, in the case of a compact proof, is a bit mask of the sidenodes of the proof where an on-bit indicates that the sidenode at the bit's index is a placeholder. This is only set if the proof is compact.
+	// BitMask, in the case of a compact proof, is a bit mask of the sidenodes
+	// of the proof where an on-bit indicates that the sidenode at the bit's
+	// index is a placeholder. This is only set if the proof is compact.
 	BitMask []byte
 
-	// NumSideNodes, in the case of a compact proof, indicates the number of sidenodes in the proof when decompacted. This is only set if the proof is compact.
+	// NumSideNodes, in the case of a compact proof, indicates the number of
+	// sidenodes in the proof when decompacted. This is only set if the proof is compact.
 	NumSideNodes int
 }
 
 func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
-	// Do a basic sanity check on the proof, so that a malicious proof cannot cause the verifier to fatally exit (e.g. due to an index out-of-range error) or cause a CPU DoS attack.
-	// We do not check the size of each sidenode, as if the size is incorrect, the proof will fail anyway as the recomputed root will not match.
+	// Do a basic sanity check on the proof, so that a malicious proof cannot
+	// cause the verifier to fatally exit (e.g. due to an index out-of-range
+	// error) or cause a CPU DoS attack.
+	//
+	// We do not check the size of each sidenode, as if the size is incorrect,
+	// the proof will fail anyway as the recomputed root will not match.
 
 	// Check that the number of supplied sidenodes does not exceed the maximum possible.
 	if len(proof.SideNodes) > th.pathSize()*8 ||
@@ -36,10 +44,12 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 		proof.NumSideNodes < 0 ||
 		proof.NumSideNodes > th.pathSize()*8 ||
 
-		// Compact proofs: check that the length of the bit mask is as expected according to NumSideNodes.
+		// Compact proofs: check that the length of the bit mask is as expected
+		// according to NumSideNodes.
 		len(proof.BitMask) != int(math.Ceil(float64(proof.NumSideNodes)/float64(8))) ||
 
-		// Compact proofs: check that the correct number of sidenodes have been supplied according to the bit mask.
+		// Compact proofs: check that the correct number of sidenodes have been
+		// supplied according to the bit mask.
 		(proof.NumSideNodes > 0 && len(proof.SideNodes) != proof.NumSideNodes-countSetBits(proof.BitMask)) {
 		return false
 	}
