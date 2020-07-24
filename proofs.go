@@ -30,9 +30,6 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 	// Do a basic sanity check on the proof, so that a malicious proof cannot
 	// cause the verifier to fatally exit (e.g. due to an index out-of-range
 	// error) or cause a CPU DoS attack.
-	//
-	// We do not check the size of each sidenode, as if the size is incorrect,
-	// the proof will fail anyway as the recomputed root will not match.
 
 	// Check that the number of supplied sidenodes does not exceed the maximum possible.
 	if len(proof.SideNodes) > th.pathSize()*8 ||
@@ -52,6 +49,13 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 		// supplied according to the bit mask.
 		(proof.NumSideNodes > 0 && len(proof.SideNodes) != proof.NumSideNodes-countSetBits(proof.BitMask)) {
 		return false
+	}
+
+	// Check that all supplied sidenodes are the correct size.
+	for _, v := range proof.SideNodes {
+		if len(v) != th.hasher.Size() {
+			return false
+		}
 	}
 
 	return true
