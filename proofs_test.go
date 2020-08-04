@@ -209,6 +209,14 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 		t.Error("invalid proof verification returned true")
 	}
 
+	// Try proving a default value for a non-default leaf.
+	th := newTreeHasher(sha256.New())
+	_, proof.NonMembershipLeafData = th.digestLeaf(th.path([]byte("testKey2")), []byte("testValue"))
+	result = verify(proof, root, []byte("testKey2"), defaultValue, sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+
 	// Generate and verify a proof on an empty key.
 	proof, err = prove([]byte("testKey3"))
 	if err != nil {
