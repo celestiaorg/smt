@@ -1,11 +1,11 @@
 package smt
 
 import (
-	"crypto/sha256"
-	"testing"
-	"hash"
 	"bytes"
+	"crypto/sha256"
+	"hash"
 	"math/rand"
+	"testing"
 )
 
 type testUpdater func(key []byte, value []byte) ([]byte, error)
@@ -63,7 +63,7 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	proof.NumSideNodes = th.pathSize()*8+1
+	proof.NumSideNodes = th.pathSize()*8 + 1
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
@@ -187,9 +187,9 @@ func randomiseProof(proof SparseMerkleProof) SparseMerkleProof {
 		rand.Read(sideNodes[i])
 	}
 	return SparseMerkleProof{
-		SideNodes: sideNodes,
+		SideNodes:             sideNodes,
 		NonMembershipLeafData: proof.NonMembershipLeafData,
-		BitMask: proof.BitMask,
-		NumSideNodes: proof.NumSideNodes,
+		BitMask:               proof.BitMask,
+		NumSideNodes:          proof.NumSideNodes,
 	}
 }
