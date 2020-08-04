@@ -211,7 +211,13 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 
 	// Try proving a default value for a non-default leaf.
 	th := newTreeHasher(sha256.New())
-	_, proof.NonMembershipLeafData = th.digestLeaf(th.path([]byte("testKey2")), []byte("testValue"))
+	_, leafData := th.digestLeaf(th.path([]byte("testKey2")), []byte("testValue"))
+	proof = SparseMerkleProof{
+		SideNodes: proof.SideNodes,
+		NonMembershipLeafData: leafData,
+		BitMask: proof.BitMask,
+		NumSideNodes: proof.NumSideNodes,
+	}
 	result = verify(proof, root, []byte("testKey2"), defaultValue, sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
