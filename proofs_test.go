@@ -21,7 +21,7 @@ func TestProofsBasic(t *testing.T) {
 	sm = NewSimpleMap()
 	smt = NewSparseMerkleTree(sm, sha256.New())
 	testProofsBasic(t, smt.Update, smt.Prove, VerifyProof)
-	
+
 	sm = NewSimpleMap()
 	smt = NewSparseMerkleTree(sm, sha256.New())
 	testProofsBasic(t, smt.Update, smt.ProveCompact, VerifyCompactProof)
@@ -42,8 +42,6 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 	if !result {
 		t.Error("valid proof on empty key failed to verify")
 	}
-
-	t.Log(proof)
 
 	// Add a key, generate and verify a Merkle proof.
 	root, _ = update([]byte("testKey"), []byte("testValue"))
@@ -69,7 +67,6 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 	proof, err = prove([]byte("testKey2"))
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
-		t.Log(err)
 	}
 	result = verify(proof, root, []byte("testKey2"), []byte("testValue"), sha256.New())
 	if !result {
@@ -148,7 +145,6 @@ func TestProofsOld(t *testing.T) {
 	proof, err = smt.Prove([]byte("testKey2"))
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
-		t.Log(err)
 	}
 	result = VerifyProof(proof, smt.root, []byte("testKey2"), []byte("testValue"), sha256.New())
 	if !result {
@@ -258,7 +254,6 @@ func TestProofsOld(t *testing.T) {
 	proof, err = smt.ProveCompact([]byte("testKey2"))
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
-		t.Log(err)
 	}
 	result = VerifyCompactProof(proof, smt.root, []byte("testKey2"), []byte("testValue"), sha256.New())
 	if !result {
@@ -283,7 +278,6 @@ func TestProofsOld(t *testing.T) {
 	proof, err = smt.ProveCompactForRoot([]byte("testKey2"), root)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
-		t.Log(err)
 	}
 	result = VerifyCompactProof(proof, root, []byte("testKey2"), []byte("testValue"), sha256.New())
 	if !result {
@@ -305,7 +299,6 @@ func TestProofsOld(t *testing.T) {
 	proof, err = smt.ProveForRoot([]byte("testKey2"), root)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
-		t.Log(err)
 	}
 	result = VerifyProof(proof, root, []byte("testKey2"), []byte("testValue"), sha256.New())
 	if !result {
