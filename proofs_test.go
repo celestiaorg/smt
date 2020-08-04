@@ -17,13 +17,77 @@ func TestProofsBasic(t *testing.T) {
 	var sm *SimpleMap
 	var smt *SparseMerkleTree
 
+	// Test non-compact proofs.
 	sm = NewSimpleMap()
 	smt = NewSparseMerkleTree(sm, sha256.New())
 	testProofsBasic(t, smt.Update, smt.Prove, VerifyProof)
 
+	// Test compact proofs.
 	sm = NewSimpleMap()
 	smt = NewSparseMerkleTree(sm, sha256.New())
 	testProofsBasic(t, smt.Update, smt.ProveCompact, VerifyCompactProof)
+}
+
+// Test sanity check cases.
+func TestProofsSanityCheck(t *testing.T) {
+	sm := NewSimpleMap()
+	smt := NewSparseMerkleTree(sm, sha256.New())
+	th := &smt.th
+
+	smt.Update([]byte("testKey1"), []byte("testValue1"))
+	smt.Update([]byte("testKey2"), []byte("testValue2"))
+	smt.Update([]byte("testKey3"), []byte("testValue3"))
+	smt.Update([]byte("testKey4"), []byte("testValue4"))
+
+	// Case: invalid number of sidenodes.
+	proof, _ := smt.Prove([]byte("testKey1"))
+	sideNodes := make([][]byte, smt.th.pathSize()*8+1)
+	for i, _ := range sideNodes {
+		sideNodes[i] = proof.SideNodes[0]
+	}
+	proof.SideNodes = sideNodes
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+
+	// Case: incorrect size for NonMembershipLeafData.
+	proof, _ = smt.Prove([]byte("testKey1"))
+	proof.NonMembershipLeafData = make([]byte, 1)
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+
+	// Case: NumSideNodes out of range.
+	proof, _ = smt.Prove([]byte("testKey1"))
+	proof.NumSideNodes = -1
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+	proof.NumSideNodes = th.pathSize()*8+1
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+
+	// Case: unexpected bit mask length.
+	proof, _ = smt.Prove([]byte("testKey1"))
+	proof.NumSideNodes = 1
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+
+	// Case: unexpected number of sidenodes for number of side nodes.
+	proof, _ = smt.ProveCompact([]byte("testKey1"))
+	proof.SideNodes = proof.SideNodes[:1]
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+
+	// Case: unexpected sidenode size.
+	proof, _ = smt.Prove([]byte("testKey1"))
+	proof.SideNodes[0] = make([]byte, 1)
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
 }
 
 func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify testVerifier) {
