@@ -88,6 +88,22 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 			t.Error("got incorrect value when bulk testing operations")
 		}
 
+		// Generate and verify a Merkle proof for this key.
+		proof, err := smt.Prove([]byte(k))
+		if err != nil {
+			t.Errorf("error: %v", err)
+		}
+		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
+			t.Error("Merkle proof failed to verify")
+		}
+		compactProof, err := smt.ProveCompact([]byte(k))
+		if err != nil {
+			t.Errorf("error: %v", err)
+		}
+		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
+			t.Error("Merkle proof failed to verify")
+		}
+
 		if v == "" {
 			continue
 		}
@@ -115,22 +131,6 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 		}
 		if numSideNodes != largestCommonPrefix+1 && (numSideNodes != 0 && largestCommonPrefix != 0) {
 			t.Error("leaf is at unexpected height")
-		}
-
-		// Generate and verify a Merkle proof for this key.
-		proof, err := smt.Prove([]byte(k))
-		if err != nil {
-			t.Errorf("error: %v", err)
-		}
-		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
-			t.Error("Merkle proof failed to verify")
-		}
-		compactProof, err := smt.ProveCompact([]byte(k))
-		if err != nil {
-			t.Errorf("error: %v", err)
-		}
-		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
-			t.Error("Merkle proof failed to verify")
 		}
 	}
 }
