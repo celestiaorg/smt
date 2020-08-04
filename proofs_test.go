@@ -5,6 +5,7 @@ import (
 	"testing"
 	"hash"
 	"bytes"
+	"math/rand"
 )
 
 type testUpdater func(key []byte, value []byte) ([]byte, error)
@@ -40,6 +41,10 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 	if !result {
 		t.Error("valid proof on empty key failed to verify")
 	}
+	result = verify(proof, root, []byte("testKey3"), []byte("badValue"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
 
 	// Add a key, generate and verify a Merkle proof.
 	root, _ = update([]byte("testKey"), []byte("testValue"))
@@ -52,10 +57,6 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 		t.Error("valid proof failed to verify")
 	}
 	result = verify(proof, root, []byte("testKey"), []byte("badValue"), sha256.New())
-	if result {
-		t.Error("invalid proof verification returned true")
-	}
-	result = verify(proof, root, []byte("testKey3"), []byte("badValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -74,6 +75,11 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
+	result = verify(randomiseProof(proof), root, []byte("testKey"), []byte("testValue"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+
 	proof, err = prove([]byte("testKey2"))
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
@@ -83,6 +89,10 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 		t.Error("valid proof failed to verify")
 	}
 	result = verify(proof, root, []byte("testKey2"), []byte("badValue"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = verify(randomiseProof(proof), root, []byte("testKey2"), []byte("testValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -99,5 +109,23 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 	result = verify(proof, root, []byte("testKey3"), []byte("badValue"), sha256.New())
 	if result {
 		t.Error("invalid proof verification returned true")
+	}
+	result = verify(randomiseProof(proof), root, []byte("testKey3"), defaultValue, sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+}
+
+func randomiseProof(proof SparseMerkleProof) SparseMerkleProof {
+	sideNodes := make([][]byte, len(proof.SideNodes))
+	for i, _ := range sideNodes {
+		sideNodes[i] = make([]byte, len(proof.SideNodes[i]))
+		rand.Read(sideNodes[i])
+	}
+	return SparseMerkleProof{
+		SideNodes: sideNodes,
+		NonMembershipLeafData: proof.NonMembershipLeafData,
+		BitMask: proof.BitMask,
+		NumSideNodes: proof.NumSideNodes,
 	}
 }
