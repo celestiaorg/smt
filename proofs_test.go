@@ -37,7 +37,7 @@ func TestProofsSanityCheck(t *testing.T) {
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
 	smt.Update([]byte("testKey2"), []byte("testValue2"))
 	smt.Update([]byte("testKey3"), []byte("testValue3"))
-	smt.Update([]byte("testKey4"), []byte("testValue4"))
+	root, _ := smt.Update([]byte("testKey4"), []byte("testValue4"))
 
 	// Case: invalid number of sidenodes.
 	proof, _ := smt.Prove([]byte("testKey1"))
@@ -49,12 +49,28 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
+	result := VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
 
 	// Case: incorrect size for NonMembershipLeafData.
 	proof, _ = smt.Prove([]byte("testKey1"))
 	proof.NonMembershipLeafData = make([]byte, 1)
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
+	}
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
 	}
 
 	// Case: NumSideNodes out of range.
@@ -67,12 +83,28 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
 
 	// Case: unexpected bit mask length.
 	proof, _ = smt.Prove([]byte("testKey1"))
 	proof.NumSideNodes = 1
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
+	}
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
 	}
 
 	// Case: unexpected number of sidenodes for number of side nodes.
@@ -81,12 +113,28 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
 
 	// Case: unexpected sidenode size.
 	proof, _ = smt.Prove([]byte("testKey1"))
 	proof.SideNodes[0] = make([]byte, 1)
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
+	}
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), sha256.New())
+	if result {
+		t.Error("invalid proof verification returned true")
 	}
 }
 
