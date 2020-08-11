@@ -17,8 +17,8 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
 
 	proof1, _ := smt.Prove([]byte("testKey1"))
 	proof2, _ := smt.Prove([]byte("testKey2"))
-	dsmst.UpdateBranch(proof1, []byte("testKey1"), []byte("testValue1"), true)
-	dsmst.UpdateBranch(proof2, []byte("testKey2"), []byte("testValue2"), true)
+	dsmst.AddBranches(proof1, []byte("testKey1"), []byte("testValue1"), true)
+	dsmst.AddBranches(proof2, []byte("testKey2"), []byte("testValue2"), true)
 
 	value, err := dsmst.Get([]byte("testKey1"))
 	if err != nil {
