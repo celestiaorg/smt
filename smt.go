@@ -376,20 +376,20 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkle
 }
 
 // ProveCompact generates a compacted Merkle proof for a key.
-func (smt *SparseMerkleTree) ProveCompact(key []byte) (SparseMerkleProof, error) {
+func (smt *SparseMerkleTree) ProveCompact(key []byte) (SparseCompactMerkleProof, error) {
 	proof, err := smt.Prove(key)
 	if err != nil {
-		return SparseMerkleProof{}, err
+		return SparseCompactMerkleProof{}, err
 	}
 	compactedProof, err := CompactProof(proof, smt.th.hasher)
 	return compactedProof, err
 }
 
 // ProveCompactForRoot generates a compacted Merkle proof for a key, at a specific root.
-func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) (SparseMerkleProof, error) {
+func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) (SparseCompactMerkleProof, error) {
 	proof, err := smt.ProveForRoot(key, root)
 	if err != nil {
-		return SparseMerkleProof{}, err
+		return SparseCompactMerkleProof{}, err
 	}
 	compactedProof, err := CompactProof(proof, smt.th.hasher)
 	return compactedProof, err

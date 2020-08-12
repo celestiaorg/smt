@@ -15,15 +15,6 @@ type SparseMerkleProof struct {
 	// NonMembershipLeafData is the data of the unrelated leaf at the position
 	// of the key being proven, in the case of a non-membership proof.
 	NonMembershipLeafData []byte
-
-	// BitMask, in the case of a compact proof, is a bit mask of the sidenodes
-	// of the proof where an on-bit indicates that the sidenode at the bit's
-	// index is a placeholder. This is only set if the proof is compact.
-	BitMask []byte
-
-	// NumSideNodes, in the case of a compact proof, indicates the number of
-	// sidenodes in the proof when decompacted. This is only set if the proof is compact.
-	NumSideNodes int
 }
 
 func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
@@ -35,11 +26,48 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 	if len(proof.SideNodes) > th.pathSize()*8 ||
 
 		// Check that leaf data for non-membership proofs is the correct size.
-		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) ||
+		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) {
+		return false
+	}
 
-		// Compact proofs: check that NumSideNodes is within the right range.
-		proof.NumSideNodes < 0 ||
-		proof.NumSideNodes > th.pathSize()*8 ||
+	// Check that all supplied sidenodes are the correct size.
+	for _, v := range proof.SideNodes {
+		if len(v) != th.hasher.Size() {
+			return false
+		}
+	}
+
+	return true
+}
+
+// SparseCompactMerkleProof is a compact Merkle proof for an element in a SparseMerkleTree.
+type SparseCompactMerkleProof struct {
+	// SideNodes is an array of the sibling nodes leading up to the leaf of the proof.
+	SideNodes [][]byte
+
+	// NonMembershipLeafData is the data of the unrelated leaf at the position
+	// of the key being proven, in the case of a non-membership proof.
+	NonMembershipLeafData []byte
+
+	// BitMask, in the case of a compact proof, is a bit mask of the sidenodes
+	// of the proof where an on-bit indicates that the sidenode at the bit's
+	// index is a placeholder. This is only set if the proof is compact.
+	BitMask []byte
+
+	// NumSideNodes, in the case of a compact proof, indicates the number of
+	// sidenodes in the proof when decompacted. This is only set if the proof is compact.
+	NumSideNodes int
+}
+
+func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
+	// Do a basic sanity check on the proof on the fields of the proof specific to
+	// the compact proof only.
+	//
+	// When the proof is de-compacted and verified, the sanity check for the
+	// de-compacted proof should be executed.
+
+	// Compact proofs: check that NumSideNodes is within the right range.
+	if proof.NumSideNodes < 0 || proof.NumSideNodes > th.pathSize()*8 ||
 
 		// Compact proofs: check that the length of the bit mask is as expected
 		// according to NumSideNodes.
@@ -49,13 +77,6 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 		// supplied according to the bit mask.
 		(proof.NumSideNodes > 0 && len(proof.SideNodes) != proof.NumSideNodes-countSetBits(proof.BitMask)) {
 		return false
-	}
-
-	// Check that all supplied sidenodes are the correct size.
-	for _, v := range proof.SideNodes {
-		if len(v) != th.hasher.Size() {
-			return false
-		}
 	}
 
 	return true
@@ -126,7 +147,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
-func VerifyCompactProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
 	decompactedProof, err := DecompactProof(proof, hasher)
 	if err != nil {
 		return false
@@ -135,11 +156,11 @@ func VerifyCompactProof(proof SparseMerkleProof, root []byte, key []byte, value 
 }
 
 // CompactProof compacts a proof, to reduce its size.
-func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseMerkleProof, error) {
+func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkleProof, error) {
 	th := newTreeHasher(hasher)
 
 	if !proof.sanityCheck(th) {
-		return SparseMerkleProof{}, errors.New("bad proof")
+		return SparseCompactMerkleProof{}, errors.New("bad proof")
 	}
 
 	bitMask := emptyBytes(int(math.Ceil(float64(len(proof.SideNodes)) / float64(8))))
@@ -154,7 +175,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseMerkleProof,
 		}
 	}
 
-	return SparseMerkleProof{
+	return SparseCompactMerkleProof{
 		SideNodes:             compactedSideNodes,
 		NonMembershipLeafData: proof.NonMembershipLeafData,
 		BitMask:               bitMask,
@@ -163,7 +184,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseMerkleProof,
 }
 
 // DecompactProof decompacts a proof, so that it can be used for VerifyProof.
-func DecompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseMerkleProof, error) {
+func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMerkleProof, error) {
 	th := newTreeHasher(hasher)
 
 	if !proof.sanityCheck(th) {

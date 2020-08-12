@@ -85,7 +85,7 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	}
 }
 
-func TestDeepSparseMerkleSubTreeBadInputs(t *testing.T) {
+func TestDeepSparseMerkleSubTreeBadInput(t *testing.T) {
 	smt := NewSparseMerkleTree(NewSimpleMap(), sha256.New())
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
@@ -93,16 +93,11 @@ func TestDeepSparseMerkleSubTreeBadInputs(t *testing.T) {
 	smt.Update([]byte("testKey3"), []byte("testValue3"))
 	smt.Update([]byte("testKey4"), []byte("testValue4"))
 
-	badProof1, _ := smt.ProveCompact([]byte("testKey1"))
-	badProof2, _ := smt.Prove([]byte("testKey1"))
-	badProof2.SideNodes[0][0] = byte(0)
+	badProof, _ := smt.Prove([]byte("testKey1"))
+	badProof.SideNodes[0][0] = byte(0)
 
 	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
-	err := dsmst.AddBranch(badProof1, []byte("testKey1"), []byte("testValue1"))
-	if err == nil {
-		t.Error("did not return error for compacted proof input")
-	}
-	err = dsmst.AddBranch(badProof2, []byte("testKey1"), []byte("testValue1"))
+	err := dsmst.AddBranch(badProof, []byte("testKey1"), []byte("testValue1"))
 	if _, ok := err.(*BadProofError); !ok {
 		t.Error("did not return BadProofError for bad proof input")
 	}
