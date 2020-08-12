@@ -161,7 +161,7 @@ func TestProofsSanityCheck(t *testing.T) {
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	_, err := CompactProof(proof, smt.th.hasher)
+	_, err = CompactProof(proof, smt.th.hasher)
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
@@ -176,7 +176,7 @@ func TestProofsSanityCheck(t *testing.T) {
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	_, err := CompactProof(proof, smt.th.hasher)
+	_, err = CompactProof(proof, smt.th.hasher)
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
