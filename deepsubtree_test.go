@@ -13,6 +13,7 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	smt.Update([]byte("testKey2"), []byte("testValue2"))
 	smt.Update([]byte("testKey3"), []byte("testValue3"))
 	smt.Update([]byte("testKey4"), []byte("testValue4"))
+	smt.Update([]byte("testKey6"), []byte("testValue6"))
 
 	proof1, _ := smt.Prove([]byte("testKey1"))
 	proof2, _ := smt.Prove([]byte("testKey2"))
@@ -43,6 +44,10 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	}
 	if bytes.Compare(value, defaultValue) != 0 {
 		t.Error("did not get correct value in deep subtree")
+	}
+	value, err = dsmst.Get([]byte("testKey6"))
+	if err == nil {
+		t.Error("did not error when getting non-added value in deep subtree")
 	}
 
 	dsmst.Update([]byte("testKey1"), []byte("testValue3"))
@@ -77,5 +82,28 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 
 	if bytes.Compare(smt.Root(), dsmst.Root()) != 0 {
 		t.Error("roots of identical standard tree and subtree do not match")
+	}
+}
+
+func TestDeepSparseMerkleSubTreeBadInputs(t *testing.T) {
+	smt := NewSparseMerkleTree(NewSimpleMap(), sha256.New())
+
+	smt.Update([]byte("testKey1"), []byte("testValue1"))
+	smt.Update([]byte("testKey2"), []byte("testValue2"))
+	smt.Update([]byte("testKey3"), []byte("testValue3"))
+	smt.Update([]byte("testKey4"), []byte("testValue4"))
+
+	badProof1, _ := smt.ProveCompact([]byte("testKey1"))
+	badProof2, _ := smt.Prove([]byte("testKey1"))
+	badProof2.SideNodes[0][0] = byte(0)
+
+	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
+	err := dsmst.AddBranch(badProof1, []byte("testKey1"), []byte("testValue1"))
+	if err == nil {
+		t.Error("did not return error for compacted proof input")
+	}
+	err = dsmst.AddBranch(badProof2, []byte("testKey1"), []byte("testValue1"))
+	if _, ok := err.(*BadProofError); !ok {
+		t.Error("did not return BadProofError for bad proof input")
 	}
 }
