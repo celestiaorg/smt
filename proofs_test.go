@@ -213,10 +213,10 @@ func testProofsBasic(t *testing.T, update testUpdater, prove testProver, verify 
 	th := newTreeHasher(sha256.New())
 	_, leafData := th.digestLeaf(th.path([]byte("testKey2")), th.digest([]byte("testValue")))
 	proof = SparseMerkleProof{
-		SideNodes: proof.SideNodes,
+		SideNodes:             proof.SideNodes,
 		NonMembershipLeafData: leafData,
-		BitMask: proof.BitMask,
-		NumSideNodes: proof.NumSideNodes,
+		BitMask:               proof.BitMask,
+		NumSideNodes:          proof.NumSideNodes,
 	}
 	result = verify(proof, root, []byte("testKey2"), defaultValue, sha256.New())
 	if result {

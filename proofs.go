@@ -63,15 +63,22 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 
 // VerifyProof verifies a Merkle proof.
 func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
+	result, _ := verifyProofWithUpdates(proof, root, key, value, hasher)
+	return result
+}
+
+func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) (bool, [][][]byte) {
 	th := newTreeHasher(hasher)
 	path := th.path(key)
 
 	if !proof.sanityCheck(th) {
-		return false
+		return false, nil
 	}
 
+	var updates [][][]byte
+
 	// Determine what the leaf hash should be.
-	var currentHash []byte
+	var currentHash, currentData []byte
 	if bytes.Equal(value, defaultValue) { // Non-membership proof.
 		if proof.NonMembershipLeafData == nil { // Leaf is a placeholder value.
 			currentHash = th.placeholder()
@@ -79,30 +86,43 @@ func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte,
 			actualPath, valueHash := th.parseLeaf(proof.NonMembershipLeafData)
 			if bytes.Equal(actualPath, path) {
 				// This is not an unrelated leaf; non-membership proof failed.
-				return false
+				return false, nil
 			}
-			currentHash, _ = th.digestLeaf(actualPath, valueHash)
+			currentHash, currentData = th.digestLeaf(actualPath, valueHash)
+
+			update := make([][]byte, 2)
+			update[0], update[1] = currentHash, currentData
+			updates = append(updates, update)
 		}
 	} else { // Membership proof.
 		valueHash := th.digest(value)
-		currentHash, _ = th.digestLeaf(path, valueHash)
+		update := make([][]byte, 2)
+		update[0], update[1] = valueHash, value
+		updates = append(updates, update)
+
+		currentHash, currentData = th.digestLeaf(path, valueHash)
+		update = make([][]byte, 2)
+		update[0], update[1] = currentHash, currentData
+		updates = append(updates, update)
 	}
 
 	// Recompute root.
 	for i := len(proof.SideNodes) - 1; i >= 0; i-- {
 		node := make([]byte, th.pathSize())
 		copy(node, proof.SideNodes[i])
-		if len(node) != th.pathSize() {
-			return false
-		}
+
 		if hasBit(path, i) == right {
-			currentHash, _ = th.digestNode(node, currentHash)
+			currentHash, currentData = th.digestNode(node, currentHash)
 		} else {
-			currentHash, _ = th.digestNode(currentHash, node)
+			currentHash, currentData = th.digestNode(currentHash, node)
 		}
+
+		update := make([][]byte, 2)
+		update[0], update[1] = currentHash, currentData
+		updates = append(updates, update)
 	}
 
-	return bytes.Compare(currentHash, root) == 0
+	return bytes.Equal(currentHash, root), updates
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.

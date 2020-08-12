@@ -7,7 +7,6 @@ import (
 )
 
 func TestDeepSparseMerkleSubTree(t *testing.T) {
-	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New())
 	smt := NewSparseMerkleTree(NewSimpleMap(), sha256.New())
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
@@ -17,8 +16,10 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
 
 	proof1, _ := smt.Prove([]byte("testKey1"))
 	proof2, _ := smt.Prove([]byte("testKey2"))
-	dsmst.AddBranches(proof1, []byte("testKey1"), []byte("testValue1"), true)
-	dsmst.AddBranches(proof2, []byte("testKey2"), []byte("testValue2"), true)
+
+	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
+	dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))
+	dsmst.AddBranch(proof2, []byte("testKey2"), []byte("testValue2"))
 
 	value, err := dsmst.Get([]byte("testKey1"))
 	if err != nil {
