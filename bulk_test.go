@@ -126,7 +126,7 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 		numSideNodes := 0
 		for _, v := range sideNodes {
 			if v != nil {
-				numSideNodes += 1
+				numSideNodes++
 			}
 		}
 		if numSideNodes != largestCommonPrefix+1 && (numSideNodes != 0 && largestCommonPrefix != 0) {

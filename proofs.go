@@ -198,7 +198,7 @@ func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMer
 			decompactedSideNodes[i] = th.placeholder()
 		} else {
 			decompactedSideNodes[i] = proof.SideNodes[position]
-			position += 1
+			position++
 		}
 	}
 

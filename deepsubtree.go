@@ -4,6 +4,7 @@ import (
 	"hash"
 )
 
+// BadProofError is returned when an invalid Merkle proof is supplied.
 type BadProofError struct{}
 
 func (e *BadProofError) Error() string {

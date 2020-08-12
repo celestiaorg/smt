@@ -27,7 +27,7 @@ func countCommonPrefix(data1 []byte, data2 []byte) int {
 	count := 0
 	for i := 0; i < len(data1)*8; i++ {
 		if hasBit(data1, i) == hasBit(data2, i) {
-			count += 1
+			count++
 		} else {
 			break
 		}

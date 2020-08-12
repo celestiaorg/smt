@@ -135,7 +135,7 @@ func TestProofsSanityCheck(t *testing.T) {
 	// Case: invalid number of sidenodes.
 	proof, _ := smt.Prove([]byte("testKey1"))
 	sideNodes := make([][]byte, smt.th.pathSize()*8+1)
-	for i, _ := range sideNodes {
+	for i := range sideNodes {
 		sideNodes[i] = proof.SideNodes[0]
 	}
 	proof.SideNodes = sideNodes
@@ -221,7 +221,7 @@ func TestCompactProofsSanityCheck(t *testing.T) {
 
 func randomiseProof(proof SparseMerkleProof) SparseMerkleProof {
 	sideNodes := make([][]byte, len(proof.SideNodes))
-	for i, _ := range sideNodes {
+	for i := range sideNodes {
 		sideNodes[i] = make([]byte, len(proof.SideNodes[i]))
 		rand.Read(sideNodes[i])
 	}
