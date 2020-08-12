@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDeepSparseMerkleSubTree(t *testing.T) {
+func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	smt := NewSparseMerkleTree(NewSimpleMap(), sha256.New())
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
@@ -16,10 +16,12 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
 
 	proof1, _ := smt.Prove([]byte("testKey1"))
 	proof2, _ := smt.Prove([]byte("testKey2"))
+	proof5, _ := smt.Prove([]byte("testKey5"))
 
 	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
 	dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))
 	dsmst.AddBranch(proof2, []byte("testKey2"), []byte("testValue2"))
+	dsmst.AddBranch(proof5, []byte("testKey5"), defaultValue)
 
 	value, err := dsmst.Get([]byte("testKey1"))
 	if err != nil {
@@ -35,9 +37,17 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
 	if bytes.Compare(value, []byte("testValue2")) != 0 {
 		t.Error("did not get correct value in deep subtree")
 	}
+	value, err = dsmst.Get([]byte("testKey5"))
+	if err != nil {
+		t.Error("returned error when getting value in deep subtree")
+	}
+	if bytes.Compare(value, defaultValue) != 0 {
+		t.Error("did not get correct value in deep subtree")
+	}
 
 	dsmst.Update([]byte("testKey1"), []byte("testValue3"))
-	dsmst.Update([]byte("testKey2"), []byte("testValue4"))
+	dsmst.Update([]byte("testKey2"), defaultValue)
+	dsmst.Update([]byte("testKey5"), []byte("testValue5"))
 
 	value, err = dsmst.Get([]byte("testKey1"))
 	if err != nil {
@@ -50,12 +60,20 @@ func TestDeepSparseMerkleSubTree(t *testing.T) {
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, []byte("testValue4")) != 0 {
+	if bytes.Compare(value, defaultValue) != 0 {
+		t.Error("did not get correct value in deep subtree")
+	}
+	value, err = dsmst.Get([]byte("testKey5"))
+	if err != nil {
+		t.Error("returned error when getting value in deep subtree")
+	}
+	if bytes.Compare(value, []byte("testValue5")) != 0 {
 		t.Error("did not get correct value in deep subtree")
 	}
 
 	smt.Update([]byte("testKey1"), []byte("testValue3"))
-	smt.Update([]byte("testKey2"), []byte("testValue4"))
+	smt.Update([]byte("testKey2"), defaultValue)
+	smt.Update([]byte("testKey5"), []byte("testValue5"))
 
 	if bytes.Compare(smt.Root(), dsmst.Root()) != 0 {
 		t.Error("roots of identical standard tree and subtree do not match")
