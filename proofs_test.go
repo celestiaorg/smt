@@ -146,6 +146,10 @@ func TestProofsSanityCheck(t *testing.T) {
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
+	_, err := CompactProof(proof, smt.th.hasher)
+	if err == nil {
+		t.Error("did not return error when compacting a malformed proof")
+	}
 
 	// Case: incorrect size for NonMembershipLeafData.
 	proof, _ = smt.Prove([]byte("testKey1"))
@@ -157,6 +161,10 @@ func TestProofsSanityCheck(t *testing.T) {
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
+	_, err := CompactProof(proof, smt.th.hasher)
+	if err == nil {
+		t.Error("did not return error when compacting a malformed proof")
+	}
 
 	// Case: unexpected sidenode size.
 	proof, _ = smt.Prove([]byte("testKey1"))
@@ -167,6 +175,10 @@ func TestProofsSanityCheck(t *testing.T) {
 	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
+	}
+	_, err := CompactProof(proof, smt.th.hasher)
+	if err == nil {
+		t.Error("did not return error when compacting a malformed proof")
 	}
 }
 
