@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-// SparseMerkleProof is a Merkle proof for a element in a SparseMerkleTree.
+// SparseMerkleProof is a Merkle proof for an element in a SparseMerkleTree.
 type SparseMerkleProof struct {
 	// SideNodes is an array of the sibling nodes leading up to the leaf of the proof.
 	SideNodes [][]byte
