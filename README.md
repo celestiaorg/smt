@@ -1,12 +1,10 @@
 # smt
 
-A Go library that implements a Sparse Merkle tree for a key-value map.
+A Go library that implements a Sparse Merkle tree for a key-value map. The tree implements the same optimisations specified in the [Libra whitepaper](https://developers.libra.org/docs/assets/papers/the-libra-blockchain/2020-05-26.pdf), to reduce the number of hash operations required per tree operation to O(k) where k is the number of non-empty elements in the tree.
 
 [![Build Status](https://travis-ci.org/lazyledger/smt.svg?branch=master)](https://travis-ci.org/lazyledger/smt)
 [![Coverage Status](https://coveralls.io/repos/github/lazyledger/smt/badge.svg?branch=master)](https://coveralls.io/github/lazyledger/smt?branch=master)
 [![GoDoc](https://godoc.org/github.com/lazyledger/smt?status.svg)](https://godoc.org/github.com/lazyledger/smt)
-
-Thanks to Vitalik Buterin who provided the [original Python prototype](https://ethresear.ch/t/data-availability-proof-friendly-state-tree-transitions/1453/6) that some of this library is inspired from.
 
 ## Example
 
