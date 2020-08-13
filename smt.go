@@ -347,6 +347,9 @@ func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkleProof, error) {
 	path := smt.th.path(key)
 	sideNodes, leafHash, leafData, err := smt.sideNodesForRoot(path, root)
+	if err != nil {
+		return SparseMerkleProof{}, err
+	}
 
 	var nonEmptySideNodes [][]byte
 	for _, v := range sideNodes {
@@ -361,9 +364,6 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkle
 	if !bytes.Equal(leafHash, smt.th.placeholder()) {
 		// This is a non-membership proof that involves showing a different leaf.
 		// Add the leaf data to the proof.
-		if err != nil {
-			return SparseMerkleProof{}, err
-		}
 		nonMembershipLeafData = leafData
 	}
 
