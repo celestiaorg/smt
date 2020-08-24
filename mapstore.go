@@ -7,8 +7,8 @@ import (
 // MapStore is a key-value store.
 type MapStore interface {
 	Get(key []byte) ([]byte, error)     // Get gets the value for a key.
-	Set(key []byte, value []byte) error // Put updates the value for a key.
-	Delete(key []byte) error            // Del deletes a key.
+	Set(key []byte, value []byte) error // Set updates the value for a key.
+	Delete(key []byte) error            // Delete deletes a key.
 }
 
 // InvalidKeyError is thrown when a key that does not exist is being accessed.
