@@ -28,21 +28,21 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, []byte("testValue1")) != 0 {
+	if !bytes.Equal(value, []byte("testValue1")) {
 		t.Error("did not get correct value in deep subtree")
 	}
 	value, err = dsmst.Get([]byte("testKey2"))
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, []byte("testValue2")) != 0 {
+	if !bytes.Equal(value, []byte("testValue2")) {
 		t.Error("did not get correct value in deep subtree")
 	}
 	value, err = dsmst.Get([]byte("testKey5"))
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, defaultValue) != 0 {
+	if !bytes.Equal(value, defaultValue) {
 		t.Error("did not get correct value in deep subtree")
 	}
 	value, err = dsmst.Get([]byte("testKey6"))
@@ -58,21 +58,21 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, []byte("testValue3")) != 0 {
+	if !bytes.Equal(value, []byte("testValue3")) {
 		t.Error("did not get correct value in deep subtree")
 	}
 	value, err = dsmst.Get([]byte("testKey2"))
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, defaultValue) != 0 {
+	if !bytes.Equal(value, defaultValue) {
 		t.Error("did not get correct value in deep subtree")
 	}
 	value, err = dsmst.Get([]byte("testKey5"))
 	if err != nil {
 		t.Error("returned error when getting value in deep subtree")
 	}
-	if bytes.Compare(value, []byte("testValue5")) != 0 {
+	if !bytes.Equal(value, []byte("testValue5")) {
 		t.Error("did not get correct value in deep subtree")
 	}
 
@@ -80,7 +80,7 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	smt.Update([]byte("testKey2"), defaultValue)
 	smt.Update([]byte("testKey5"), []byte("testValue5"))
 
-	if bytes.Compare(smt.Root(), dsmst.Root()) != 0 {
+	if !bytes.Equal(smt.Root(), dsmst.Root()) {
 		t.Error("roots of identical standard tree and subtree do not match")
 	}
 }

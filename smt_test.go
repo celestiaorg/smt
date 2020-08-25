@@ -20,7 +20,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting empty key: %v", err)
 	}
-	if bytes.Compare(defaultValue, value) != 0 {
+	if !bytes.Equal(defaultValue, value) {
 		t.Error("did not get default value when getting empty key")
 	}
 
@@ -33,7 +33,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue"), value) != 0 {
+	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
@@ -46,7 +46,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue2"), value) != 0 {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
@@ -60,7 +60,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty second key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue"), value) != 0 {
+	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty second key")
 	}
 
@@ -73,14 +73,14 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty third key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue"), value) != 0 {
+	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty third key")
 	}
 	value, err = smt.Get([]byte("testKey"))
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue2"), value) != 0 {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
@@ -91,24 +91,27 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue2"), value) != 0 {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
 	// Test that it is possible to successfully update a key in an older root.
 	root, err = smt.UpdateForRoot([]byte("testKey3"), []byte("testValue4"), root)
+	if err != nil {
+		t.Errorf("unable to update key: %v", err)
+	}
 	value, err = smt.GetForRoot([]byte("testKey3"), root)
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue4"), value) != 0 {
+	if !bytes.Equal([]byte("testValue4"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 	value, err = smt.GetForRoot([]byte("testKey"), root)
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue2"), value) != 0 {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
@@ -118,7 +121,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	if err != nil {
 		t.Error("returned error when getting non-empty key")
 	}
-	if bytes.Compare([]byte("testValue3"), value) != 0 {
+	if !bytes.Equal([]byte("testValue3"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 }
@@ -157,7 +160,7 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue1"), value) != 0 {
+	if !bytes.Equal([]byte("testValue1"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
@@ -165,7 +168,7 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue2"), value) != 0 {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 }
@@ -174,11 +177,9 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	sm := NewSimpleMap()
 	smt := NewSparseMerkleTree(sm, sha256.New())
-	var value []byte
-	var err error
 
 	// Testing inserting, deleting a key, and inserting it again.
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	_, err := smt.Update([]byte("testKey"), []byte("testValue"))
 	if err != nil {
 		t.Errorf("returned error when updating empty key: %v", err)
 	}
@@ -187,11 +188,11 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when deleting key: %v", err)
 	}
-	value, err = smt.Get([]byte("testKey"))
+	value, err := smt.Get([]byte("testKey"))
 	if err != nil {
 		t.Errorf("returned error when getting deleted key: %v", err)
 	}
-	if bytes.Compare(defaultValue, value) != 0 {
+	if !bytes.Equal(defaultValue, value) {
 		t.Error("did not get default value when getting deleted key")
 	}
 	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
@@ -202,7 +203,7 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue"), value) != 0 {
+	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 	if !bytes.Equal(root1, smt.Root()) {
@@ -222,14 +223,14 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting deleted key: %v", err)
 	}
-	if bytes.Compare(defaultValue, value) != 0 {
+	if !bytes.Equal(defaultValue, value) {
 		t.Error("did not get default value when getting deleted key")
 	}
 	value, err = smt.Get([]byte("testKey"))
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue"), value) != 0 {
+	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 	if !bytes.Equal(root1, smt.Root()) {
@@ -239,6 +240,10 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	// Test inserting and deleting a different second key, when the the first
 	// bits of the path for the two keys in the tree are different (when using SHA256).
 	_, err = smt.Update([]byte("foo"), []byte("testValue"))
+	if err != nil {
+		t.Errorf("unable to update key: %v", err)
+	}
+
 	value, err = smt.Get([]byte("foo"))
 	if err != nil {
 		t.Errorf("returned error when updating empty second key: %v", err)
@@ -251,14 +256,14 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when getting deleted key: %v", err)
 	}
-	if bytes.Compare(defaultValue, value) != 0 {
+	if !bytes.Equal(defaultValue, value) {
 		t.Error("did not get default value when getting deleted key")
 	}
 	value, err = smt.Get([]byte("testKey"))
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
-	if bytes.Compare([]byte("testValue"), value) != 0 {
+	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 	if !bytes.Equal(root1, smt.Root()) {

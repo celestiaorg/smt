@@ -21,7 +21,7 @@ func TestSimpleMap(t *testing.T) {
 	}
 
 	// Tests for Put.
-	err = sm.Put(h.Sum(nil), []byte("hello"))
+	err = sm.Set(h.Sum(nil), []byte("hello"))
 	if err != nil {
 		t.Error("updating a key returned an error")
 	}
@@ -29,12 +29,12 @@ func TestSimpleMap(t *testing.T) {
 	if err != nil {
 		t.Error("getting a key returned an error")
 	}
-	if bytes.Compare(value, []byte("hello")) != 0 {
+	if !bytes.Equal(value, []byte("hello")) {
 		t.Error("failed to update key")
 	}
 
 	// Tests for Del.
-	err = sm.Del(h.Sum(nil))
+	err = sm.Delete(h.Sum(nil))
 	if err != nil {
 		t.Error("deleting a key returned an error")
 	}
@@ -42,7 +42,7 @@ func TestSimpleMap(t *testing.T) {
 	if err == nil {
 		t.Error("failed to delete key")
 	}
-	err = sm.Del([]byte("nonexistent"))
+	err = sm.Delete([]byte("nonexistent"))
 	if err == nil {
 		t.Error("deleting a key did not return an error on a non-existent key")
 	}

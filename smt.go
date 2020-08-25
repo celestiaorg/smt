@@ -6,8 +6,9 @@ import (
 	"hash"
 )
 
-const left = 0
-const right = 1
+const (
+	right = 1
+)
 
 var defaultValue = []byte{}
 
@@ -206,7 +207,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
 		}
-		err := smt.ms.Put(currentHash, currentData)
+		err := smt.ms.Set(currentHash, currentData)
 		if err != nil {
 			return nil, err
 		}
@@ -222,9 +223,14 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 
 func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte, oldLeafHash []byte, oldLeafData []byte) ([]byte, error) {
 	valueHash := smt.th.digest(value)
-	smt.ms.Put(valueHash, value)
+	if err := smt.ms.Set(valueHash, value); err != nil {
+		return nil, err
+	}
+
 	currentHash, currentData := smt.th.digestLeaf(path, valueHash)
-	smt.ms.Put(currentHash, currentData)
+	if err := smt.ms.Set(currentHash, currentData); err != nil {
+		return nil, err
+	}
 	currentData = currentHash
 
 	// If the leaf node that sibling nodes lead to has a different actual path
@@ -247,7 +253,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 			currentHash, currentData = smt.th.digestNode(currentData, oldLeafHash)
 		}
 
-		err := smt.ms.Put(currentHash, currentData)
+		err := smt.ms.Set(currentHash, currentData)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +283,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
 		}
-		err := smt.ms.Put(currentHash, currentData)
+		err := smt.ms.Set(currentHash, currentData)
 		if err != nil {
 			return nil, err
 		}
