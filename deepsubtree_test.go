@@ -15,14 +15,26 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	smt.Update([]byte("testKey4"), []byte("testValue4"))
 	smt.Update([]byte("testKey6"), []byte("testValue6"))
 
+	var originalRoot []byte
+	copy(originalRoot, smt.Root())
+
 	proof1, _ := smt.Prove([]byte("testKey1"))
 	proof2, _ := smt.Prove([]byte("testKey2"))
 	proof5, _ := smt.Prove([]byte("testKey5"))
 
 	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
-	dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))
-	dsmst.AddBranch(proof2, []byte("testKey2"), []byte("testValue2"))
-	dsmst.AddBranch(proof5, []byte("testKey5"), defaultValue)
+	err := dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof2, []byte("testKey2"), []byte("testValue2"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof5, []byte("testKey5"), defaultValue)
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
 
 	value, err := dsmst.Get([]byte("testKey1"))
 	if err != nil {
@@ -50,9 +62,18 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 		t.Error("did not error when getting non-added value in deep subtree")
 	}
 
-	dsmst.Update([]byte("testKey1"), []byte("testValue3"))
-	dsmst.Update([]byte("testKey2"), defaultValue)
-	dsmst.Update([]byte("testKey5"), []byte("testValue5"))
+	_, err = dsmst.Update([]byte("testKey1"), []byte("testValue3"))
+	if err != nil {
+		t.Errorf("returned error when updating deep subtree: %v", err)
+	}
+	_, err = dsmst.Update([]byte("testKey2"), defaultValue)
+	if err != nil {
+		t.Errorf("returned error when updating deep subtree: %v", err)
+	}
+	_, err = dsmst.Update([]byte("testKey5"), []byte("testValue5"))
+	if err != nil {
+		t.Errorf("returned error when updating deep subtree: %v", err)
+	}
 
 	value, err = dsmst.Get([]byte("testKey1"))
 	if err != nil {
@@ -76,12 +97,24 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 		t.Error("did not get correct value in deep subtree")
 	}
 
-	smt.Update([]byte("testKey1"), []byte("testValue3"))
-	smt.Update([]byte("testKey2"), defaultValue)
-	smt.Update([]byte("testKey5"), []byte("testValue5"))
+	_, err = smt.Update([]byte("testKey1"), []byte("testValue3"))
+	if err != nil {
+		t.Errorf("returned error when updating main tree: %v", err)
+	}
+	_, err = smt.Update([]byte("testKey2"), defaultValue)
+	if err != nil {
+		t.Errorf("returned error when updating main tree: %v", err)
+	}
+	_, err = smt.Update([]byte("testKey5"), []byte("testValue5"))
+	if err != nil {
+		t.Errorf("returned error when updating main tree: %v", err)
+	}
 
 	if !bytes.Equal(smt.Root(), dsmst.Root()) {
 		t.Error("roots of identical standard tree and subtree do not match")
+	}
+	if bytes.Equal(smt.Root(), originalRoot) {
+		t.Error("root stayed the same despite updates")
 	}
 }
 
