@@ -132,6 +132,11 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	return newRoot, err
 }
 
+// Delete deletes a value from tree. It returns a new root of the tree.
+func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
+	return smt.Update(key, defaultValue)
+}
+
 // UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
 func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
 	path := smt.th.path(key)
