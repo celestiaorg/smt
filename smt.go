@@ -160,6 +160,11 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 	return newRoot, err
 }
 
+// Delete deletes a value from tree at a specific root. It returns a new root of the tree.
+func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
+	return smt.UpdateForRoot(key, defaultValue, root)
+}
+
 func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, oldLeafHash []byte, oldLeafData []byte) ([]byte, error) {
 	if bytes.Equal(oldLeafHash, smt.th.placeholder()) {
 		// This key is already empty as it is a placeholder; return an error.

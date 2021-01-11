@@ -115,6 +115,19 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
+	// Test that it is possible to delete key in an older root.
+	root, err = smt.DeleteForRoot([]byte("testKey3"), root)
+	if err != nil {
+		t.Errorf("unable to delete key: %v", err)
+	}
+	value, err = smt.GetForRoot([]byte("testKey3"), root)
+	if err != nil {
+		t.Errorf("returned error when getting empty key: %v", err)
+	}
+	if !bytes.Equal(defaultValue, value) {
+		t.Error("did not get correct value when getting empty key")
+	}
+
 	// Test that a tree can be imported from a MapStore.
 	smt2 := ImportSparseMerkleTree(sm, sha256.New(), smt.Root())
 	value, err = smt2.Get([]byte("testKey"))
