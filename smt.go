@@ -123,6 +123,20 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	return value, nil
 }
 
+// Has returns true if tree cointains given key, false otherwise.
+func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
+	val, err := smt.Get(key)
+	// this covers both val == nil and val == defaultValue
+	return len(val) > 0, err
+}
+
+// HasForRoot returns true if tree cointains given key at a specific root, false otherwise.
+func (smt *SparseMerkleTree) HasForRoot(key, root []byte) (bool, error) {
+	val, err := smt.GetForRoot(key, root)
+	// this covers both val == nil and val == defaultValue
+	return len(val) > 0, err
+}
+
 // Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
