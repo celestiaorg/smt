@@ -226,7 +226,7 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 		t.Errorf("returned error when updating empty key: %v", err)
 	}
 	root1 := smt.Root()
-	_, err = smt.Delete([]byte("testKey"))
+	_, err = smt.Update([]byte("testKey"), defaultValue)
 	if err != nil {
 		t.Errorf("returned error when deleting key: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when updating empty second key: %v", err)
 	}
-	_, err = smt.Delete([]byte("testKey2"))
+	_, err = smt.Update([]byte("testKey2"), defaultValue)
 	if err != nil {
 		t.Errorf("returned error when deleting key: %v", err)
 	}
@@ -290,7 +290,7 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if err != nil {
 		t.Errorf("returned error when updating empty second key: %v", err)
 	}
-	_, err = smt.Delete([]byte("foo"))
+	_, err = smt.Update([]byte("foo"), defaultValue)
 	if err != nil {
 		t.Errorf("returned error when deleting key: %v", err)
 	}
