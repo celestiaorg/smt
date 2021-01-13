@@ -123,6 +123,18 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	return value, nil
 }
 
+// Has returns true if tree cointains given key, false otherwise.
+func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
+	val, err := smt.Get(key)
+	return !bytes.Equal(defaultValue, val), err
+}
+
+// HasForRoot returns true if tree cointains given key at a specific root, false otherwise.
+func (smt *SparseMerkleTree) HasForRoot(key, root []byte) (bool, error) {
+	val, err := smt.GetForRoot(key, root)
+	return !bytes.Equal(defaultValue, val), err
+}
+
 // Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
@@ -130,6 +142,11 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 		smt.SetRoot(newRoot)
 	}
 	return newRoot, err
+}
+
+// Delete deletes a value from tree. It returns the new root of the tree.
+func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
+	return smt.Update(key, defaultValue)
 }
 
 // UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
@@ -153,6 +170,11 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 		newRoot, err = smt.updateWithSideNodes(path, value, sideNodes, oldLeafHash, oldLeafData)
 	}
 	return newRoot, err
+}
+
+// Delete deletes a value from tree at a specific root. It returns the new root of the tree.
+func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
+	return smt.UpdateForRoot(key, defaultValue, root)
 }
 
 func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, oldLeafHash []byte, oldLeafData []byte) ([]byte, error) {

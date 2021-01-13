@@ -13,6 +13,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	sm := NewSimpleMap()
 	smt := NewSparseMerkleTree(sm, sha256.New())
 	var value []byte
+	var has bool
 	var err error
 
 	// Test getting an empty key.
@@ -22,6 +23,13 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 	if !bytes.Equal(defaultValue, value) {
 		t.Error("did not get default value when getting empty key")
+	}
+	has, err = smt.Has([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when checking presence of empty key: %v", err)
+	}
+	if has {
+		t.Error("did not get 'false' when checking presence of empty key")
 	}
 
 	// Test updating the empty key.
@@ -35,6 +43,13 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 	if !bytes.Equal([]byte("testValue"), value) {
 		t.Error("did not get correct value when getting non-empty key")
+	}
+	has, err = smt.Has([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when checking presence of non-empty key: %v", err)
+	}
+	if !has {
+		t.Error("did not get 'true' when checking presence of non-empty key")
 	}
 
 	// Test updating the non-empty key.
@@ -113,6 +128,33 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
+	}
+	has, err = smt.HasForRoot([]byte("testKey"), root)
+	if err != nil {
+		t.Errorf("returned error when checking presence of non-empty key: %v", err)
+	}
+	if !has {
+		t.Error("did not get 'false' when checking presence of non-empty key")
+	}
+
+	// Test that it is possible to delete key in an older root.
+	root, err = smt.DeleteForRoot([]byte("testKey3"), root)
+	if err != nil {
+		t.Errorf("unable to delete key: %v", err)
+	}
+	value, err = smt.GetForRoot([]byte("testKey3"), root)
+	if err != nil {
+		t.Errorf("returned error when getting empty key: %v", err)
+	}
+	if !bytes.Equal(defaultValue, value) {
+		t.Error("did not get correct value when getting empty key")
+	}
+	has, err = smt.HasForRoot([]byte("testKey3"), root)
+	if err != nil {
+		t.Errorf("returned error when checking presence of empty key: %v", err)
+	}
+	if has {
+		t.Error("did not get 'false' when checking presence of empty key")
 	}
 
 	// Test that a tree can be imported from a MapStore.
@@ -195,6 +237,13 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if !bytes.Equal(defaultValue, value) {
 		t.Error("did not get default value when getting deleted key")
 	}
+	has, err := smt.Has([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when checking existence of deleted key: %v", err)
+	}
+	if has {
+		t.Error("returned 'true' when checking existernce of deleted key")
+	}
 	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
 	if err != nil {
 		t.Errorf("returned error when updating empty key: %v", err)
@@ -269,6 +318,46 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if !bytes.Equal(root1, smt.Root()) {
 		t.Error("tree root is not as expected after deleting second key")
 	}
+
+	// Testing inserting, deleting a key, and inserting it again, using Delete
+	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	root1 = smt.Root()
+	_, err = smt.Delete([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when deleting key: %v", err)
+	}
+	value, err = smt.Get([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when getting deleted key: %v", err)
+	}
+	if !bytes.Equal(defaultValue, value) {
+		t.Error("did not get default value when getting deleted key")
+	}
+	has, err = smt.Has([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when checking existence of deleted key: %v", err)
+	}
+	if has {
+		t.Error("returned 'true' when checking existernce of deleted key")
+	}
+	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	value, err = smt.Get([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	if !bytes.Equal(root1, smt.Root()) {
+		t.Error("tree root is not as expected after re-inserting key after deletion")
+	}
+
 }
 
 // dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
