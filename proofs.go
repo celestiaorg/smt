@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"hash"
-	"math"
 )
 
 // SparseMerkleProof is a Merkle proof for an element in a SparseMerkleTree.
@@ -71,7 +70,7 @@ func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
 
 		// Compact proofs: check that the length of the bit mask is as expected
 		// according to NumSideNodes.
-		len(proof.BitMask) != int(math.Ceil(float64(proof.NumSideNodes)/float64(8))) ||
+		len(proof.BitMask) != (proof.NumSideNodes+8-1)/8 ||
 
 		// Compact proofs: check that the correct number of sidenodes have been
 		// supplied according to the bit mask.
@@ -163,7 +162,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 		return SparseCompactMerkleProof{}, errors.New("bad proof")
 	}
 
-	bitMask := emptyBytes(int(math.Ceil(float64(len(proof.SideNodes)) / float64(8))))
+	bitMask := emptyBytes((len(proof.SideNodes) + 8 - 1) / 8)
 	var compactedSideNodes [][]byte
 	for i := 0; i < len(proof.SideNodes); i++ {
 		node := make([]byte, th.hasher.Size())
