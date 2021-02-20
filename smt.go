@@ -390,9 +390,12 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkle
 	// value, we do not need to add anything else to the proof.
 	var nonMembershipLeafData []byte
 	if !bytes.Equal(leafHash, smt.th.placeholder()) {
-		// This is a non-membership proof that involves showing a different leaf.
-		// Add the leaf data to the proof.
-		nonMembershipLeafData = leafData
+		actualPath, _ := smt.th.parseLeaf(leafData)
+		if !bytes.Equal(actualPath, path) {
+			// This is a non-membership proof that involves showing a different leaf.
+			// Add the leaf data to the proof.
+			nonMembershipLeafData = leafData
+		}
 	}
 
 	proof := SparseMerkleProof{

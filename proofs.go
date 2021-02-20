@@ -13,7 +13,8 @@ type SparseMerkleProof struct {
 	SideNodes [][]byte
 
 	// NonMembershipLeafData is the data of the unrelated leaf at the position
-	// of the key being proven, in the case of a non-membership proof.
+	// of the key being proven, in the case of a non-membership proof. For
+	// membership proofs, is nil.
 	NonMembershipLeafData []byte
 }
 
