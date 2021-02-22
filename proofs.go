@@ -70,7 +70,7 @@ func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
 
 		// Compact proofs: check that the length of the bit mask is as expected
 		// according to NumSideNodes.
-		len(proof.BitMask) != (proof.NumSideNodes+8-1)/8 ||
+		len(proof.BitMask) != roundUpDivision(proof.NumSideNodes, 8) ||
 
 		// Compact proofs: check that the correct number of sidenodes have been
 		// supplied according to the bit mask.
@@ -162,7 +162,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 		return SparseCompactMerkleProof{}, errors.New("bad proof")
 	}
 
-	bitMask := emptyBytes((len(proof.SideNodes) + 8 - 1) / 8)
+	bitMask := emptyBytes(roundUpDivision(len(proof.SideNodes), 8))
 	var compactedSideNodes [][]byte
 	for i := 0; i < len(proof.SideNodes); i++ {
 		node := make([]byte, th.hasher.Size())

@@ -39,3 +39,11 @@ func emptyBytes(length int) []byte {
 	b := make([]byte, length)
 	return b
 }
+
+func roundUpDivision(a int, b int) int {
+	result := a / b
+	if a%b != 0 {
+		result++
+	}
+	return result
+}
