@@ -40,13 +40,13 @@ func (sm *SimpleMap) Get(key []byte) ([]byte, error) {
 	return nil, &InvalidKeyError{Key: key}
 }
 
-// Put updates the value for a key.
+// Set updates the value for a key.
 func (sm *SimpleMap) Set(key []byte, value []byte) error {
 	sm.m[string(key)] = value
 	return nil
 }
 
-// Del deletes a key.
+// Delete deletes a key.
 func (sm *SimpleMap) Delete(key []byte) error {
 	_, ok := sm.m[string(key)]
 	if ok {
