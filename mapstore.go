@@ -17,7 +17,7 @@ type InvalidKeyError struct {
 }
 
 func (e *InvalidKeyError) Error() string {
-	return fmt.Sprintf("invalid key: %s", e.Key)
+	return fmt.Sprintf("invalid key: %x", e.Key)
 }
 
 // SimpleMap is a simple in-memory map.
