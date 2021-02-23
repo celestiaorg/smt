@@ -187,7 +187,7 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	key1[h.Size()+4-1] = byte(0)
 	key2 := make([]byte, h.Size()+4)
 	copy(key2, key1)
-	setBit(key2, (h.Size()+4)*8-1)
+	setBitAtFromMSB(key2, (h.Size()+4)*8-1)
 
 	_, err = smt.Update(key1, []byte("testValue1"))
 	if err != nil {
