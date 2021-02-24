@@ -168,6 +168,75 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 }
 
+// Test known tree ops
+func TestSparseMerkleTreeKnown(t *testing.T) {
+	h := newDummyHasher(sha256.New())
+	sm := NewSimpleMap()
+	smt := NewSparseMerkleTree(sm, h)
+	var value []byte
+	var err error
+
+	baseKey := make([]byte, h.Size()+4)
+	key1 := make([]byte, h.Size()+4)
+	copy(key1, baseKey)
+	key1[4] = byte(0b00000000)
+	key2 := make([]byte, h.Size()+4)
+	copy(key2, baseKey)
+	key2[4] = byte(0b01000000)
+	key3 := make([]byte, h.Size()+4)
+	copy(key3, baseKey)
+	key3[4] = byte(0b10000000)
+	key4 := make([]byte, h.Size()+4)
+	copy(key4, baseKey)
+	key4[4] = byte(0b11000000)
+
+	_, err = smt.Update(key1, []byte("testValue1"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key2, []byte("testValue2"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key3, []byte("testValue3"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key4, []byte("testValue4"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+
+	value, err = smt.Get(key1)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue1"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key2)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue2"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key3)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue3"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key4)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue4"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+}
+
 // Test tree operations when two leafs are immediate neighbours.
 func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	h := newDummyHasher(sha256.New())
