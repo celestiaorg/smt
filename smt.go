@@ -300,7 +300,13 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 			copy(sideNode, sideNodes[i])
 		}
 
-		if getBitAtFromMSB(path, smt.depth()-1-i) == right {
+		var index int
+		if commonPrefixCount == smt.depth() {
+			index = len(sideNodes) - 1 - i
+		} else {
+			index = commonPrefixCount - 1 - i
+		}
+		if getBitAtFromMSB(path, index) == right {
 			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
