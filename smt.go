@@ -142,7 +142,7 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 		return nil, err
 	}
 	smt.SetRoot(newRoot)
-	return newRoot, err
+	return newRoot, nil
 }
 
 // Delete deletes a value from tree. It returns the new root of the tree.
