@@ -139,7 +139,7 @@ func (smt *SparseMerkleTree) HasForRoot(key, root []byte) (bool, error) {
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
 	if err != nil {
-		return newRoot, err
+		return nil, err
 	}
 	smt.SetRoot(newRoot)
 	return newRoot, err
