@@ -3,6 +3,7 @@ package smt
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"testing"
 )
 
@@ -131,7 +132,7 @@ func TestDeepSparseMerkleSubTreeBadInput(t *testing.T) {
 
 	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
 	err := dsmst.AddBranch(badProof, []byte("testKey1"), []byte("testValue1"))
-	if _, ok := err.(*BadProofError); !ok {
+	if !errors.Is(err, BadProofError) {
 		t.Error("did not return BadProofError for bad proof input")
 	}
 }
