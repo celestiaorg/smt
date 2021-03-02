@@ -286,8 +286,12 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	for i := 0; i < smt.depth(); i++ {
 		sideNode := make([]byte, smt.th.pathSize())
 
-		if i >= len(sideNodes) || sideNodes[i] == nil {
-			if commonPrefixCount != smt.depth() && commonPrefixCount > i {
+		// The offset from the bottom of the tree to the start of the side nodes
+		// i-offsetOfSideNodes is the index into sideNodes[]
+		offsetOfSideNodes := smt.depth() - len(sideNodes)
+
+		if i-offsetOfSideNodes < 0 || sideNodes[i-offsetOfSideNodes] == nil {
+			if commonPrefixCount != smt.depth() && commonPrefixCount > smt.depth()-1-i {
 				// If there are no sidenodes at this height, but the number of
 				// bits that the paths of the two leaf nodes share in common is
 				// greater than this height, then we need to build up the tree
@@ -297,16 +301,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 				continue
 			}
 		} else {
-			copy(sideNode, sideNodes[i])
+			copy(sideNode, sideNodes[i-offsetOfSideNodes])
 		}
 
-		var index int
-		if commonPrefixCount == smt.depth() {
-			index = len(sideNodes) - 1 - i
-		} else {
-			index = commonPrefixCount - 1 - i
-		}
-		if getBitAtFromMSB(path, index) == right {
+		if getBitAtFromMSB(path, smt.depth()-1-i) == right {
 			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)

@@ -189,6 +189,9 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 	key4 := make([]byte, h.Size()+4)
 	copy(key4, baseKey)
 	key4[4] = byte(0b11000000)
+	key5 := make([]byte, h.Size()+4)
+	copy(key5, baseKey)
+	key5[4] = byte(0b11010000)
 
 	_, err = smt.Update(key1, []byte("testValue1"))
 	if err != nil {
@@ -203,6 +206,10 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 		t.Errorf("returned error when updating empty key: %v", err)
 	}
 	_, err = smt.Update(key4, []byte("testValue4"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key5, []byte("testValue5"))
 	if err != nil {
 		t.Errorf("returned error when updating empty key: %v", err)
 	}
@@ -234,6 +241,40 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 	}
 	if !bytes.Equal([]byte("testValue4"), value) {
 		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key5)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue5"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+
+	proof1, _ := smt.Prove(key1)
+	proof2, _ := smt.Prove(key2)
+	proof3, _ := smt.Prove(key3)
+	proof4, _ := smt.Prove(key4)
+	proof5, _ := smt.Prove(key5)
+	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), h, smt.Root())
+	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof2, key2, []byte("testValue2"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof3, key3, []byte("testValue3"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof4, key4, []byte("testValue4"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof5, key5, []byte("testValue5"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
 }
 
