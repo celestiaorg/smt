@@ -524,3 +524,30 @@ func (h *dummyHasher) Size() int {
 func (h *dummyHasher) BlockSize() int {
 	return h.Size()
 }
+
+func TestOrphanRemoval(t *testing.T) {
+	sm := NewSimpleMap()
+	smt := NewSparseMerkleTree(sm, sha256.New()) /*.WithOption(AutoOrphanRemoval)*/
+
+	var err error
+	nodeCount := func() int {
+		return len(sm.m)
+	}
+
+	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	// only root and leaf
+	if 2 != nodeCount() {
+		t.Errorf("expected 2 tree nodes after insertion, got: %d", nodeCount())
+	}
+
+	_, err = smt.Delete([]byte("testKey"))
+	if err != nil {
+		t.Errorf("returned error when updating not-empty key: %v", err)
+	}
+	if 0 != nodeCount() {
+		t.Errorf("expected 0 tree nodes after deletion, got: %d", nodeCount())
+	}
+}
