@@ -138,10 +138,11 @@ func (smt *SparseMerkleTree) HasForRoot(key, root []byte) (bool, error) {
 // Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
-	if err == nil {
-		smt.SetRoot(newRoot)
+	if err != nil {
+		return nil, err
 	}
-	return newRoot, err
+	smt.SetRoot(newRoot)
+	return newRoot, nil
 }
 
 // Delete deletes a value from tree. It returns the new root of the tree.
