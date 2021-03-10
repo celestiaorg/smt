@@ -247,11 +247,11 @@ func randomiseProof(proof SparseMerkleProof) SparseMerkleProof {
 func checkCompactEquivalence(t *testing.T, proof SparseMerkleProof, hasher hash.Hash) {
 	compactedProof, err := CompactProof(proof, hasher)
 	if err != nil {
-		t.Error("failed to compact proof")
+		t.Errorf("failed to compact proof %v", err)
 	}
 	decompactedProof, err := DecompactProof(compactedProof, hasher)
 	if err != nil {
-		t.Error("failed to decompact proof")
+		t.Errorf("failed to decompact proof %v", err)
 	}
 
 	for i, sideNode := range proof.SideNodes {

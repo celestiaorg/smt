@@ -16,6 +16,10 @@ type SparseMerkleProof struct {
 	// of the key being proven, in the case of a non-membership proof. For
 	// membership proofs, is nil.
 	NonMembershipLeafData []byte
+
+	// SiblingData is the data of the sibling node to the leaf being proven,
+	// required for updatable proofs.
+	SiblingData []byte
 }
 
 func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
@@ -38,6 +42,15 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 		}
 	}
 
+	// Check that the sibling data hashes to the last side node
+	// TODO this should be first node
+	siblingHash := th.digest(proof.SiblingData)
+	if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
+		if !bytes.Equal(proof.SideNodes[len(proof.SideNodes)-1], siblingHash) {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -47,7 +60,8 @@ type SparseCompactMerkleProof struct {
 	SideNodes [][]byte
 
 	// NonMembershipLeafData is the data of the unrelated leaf at the position
-	// of the key being proven, in the case of a non-membership proof.
+	// of the key being proven, in the case of a non-membership proof. For
+	// membership proofs, is nil.
 	NonMembershipLeafData []byte
 
 	// BitMask, in the case of a compact proof, is a bit mask of the sidenodes
@@ -58,6 +72,10 @@ type SparseCompactMerkleProof struct {
 	// NumSideNodes, in the case of a compact proof, indicates the number of
 	// sidenodes in the proof when decompacted. This is only set if the proof is compact.
 	NumSideNodes int
+
+	// SiblingData is the data of the sibling node to the leaf being proven,
+	// required for updatable proofs.
+	SiblingData []byte
 }
 
 func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
@@ -181,6 +199,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 		NonMembershipLeafData: proof.NonMembershipLeafData,
 		BitMask:               bitMask,
 		NumSideNodes:          len(proof.SideNodes),
+		SiblingData:           proof.SiblingData,
 	}, nil
 }
 
@@ -206,5 +225,6 @@ func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMer
 	return SparseMerkleProof{
 		SideNodes:             decompactedSideNodes,
 		NonMembershipLeafData: proof.NonMembershipLeafData,
+		SiblingData:           proof.SiblingData,
 	}, nil
 }
