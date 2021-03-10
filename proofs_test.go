@@ -210,7 +210,7 @@ func TestCompactProofsSanityCheck(t *testing.T) {
 
 	// Case (compact proofs): unexpected bit mask length.
 	proof, _ = smt.ProveCompact([]byte("testKey1"))
-	proof.NumSideNodes = 1
+	proof.NumSideNodes = 10
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
@@ -221,7 +221,7 @@ func TestCompactProofsSanityCheck(t *testing.T) {
 
 	// Case (compact proofs): unexpected number of sidenodes for number of side nodes.
 	proof, _ = smt.ProveCompact([]byte("testKey1"))
-	proof.SideNodes = proof.SideNodes[:1]
+	proof.SideNodes = append(proof.SideNodes, proof.SideNodes...)
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}

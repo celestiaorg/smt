@@ -96,7 +96,7 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 		}
 
 		leftNode, rightNode := smt.th.parseNode(currentData)
-		if hasBit(path, i) == right {
+		if getBitAtFromMSB(path, i) == right {
 			currentHash = rightNode
 		} else {
 			currentHash = leftNode
@@ -189,7 +189,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 
 	var currentHash, currentData []byte
 	nonPlaceholderReached := false
-	for i := smt.depth() - 1; i >= 0; i-- {
+	for i := 0; i < len(sideNodes); i++ {
 		if sideNodes[i] == nil {
 			continue
 		}
@@ -216,7 +216,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 		}
 
 		if !nonPlaceholderReached && bytes.Equal(sideNode, smt.th.placeholder()) {
-			// We found another placeholder sibling node, keep going down the
+			// We found another placeholder sibling node, keep going up the
 			// tree until we find the first sibling that is not a placeholder.
 			continue
 		} else if !nonPlaceholderReached {
@@ -225,7 +225,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 			nonPlaceholderReached = true
 		}
 
-		if hasBit(path, i) == right {
+		if getBitAtFromMSB(path, len(sideNodes)-1-i) == right {
 			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
@@ -270,7 +270,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		commonPrefixCount = countCommonPrefix(path, actualPath)
 	}
 	if commonPrefixCount != smt.depth() {
-		if hasBit(path, commonPrefixCount) == right {
+		if getBitAtFromMSB(path, commonPrefixCount) == right {
 			currentHash, currentData = smt.th.digestNode(oldLeafHash, currentData)
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, oldLeafHash)
@@ -284,11 +284,15 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		currentData = currentHash
 	}
 
-	for i := smt.depth() - 1; i >= 0; i-- {
+	for i := 0; i < smt.depth(); i++ {
 		sideNode := make([]byte, smt.th.pathSize())
 
-		if sideNodes[i] == nil {
-			if commonPrefixCount != smt.depth() && commonPrefixCount > i {
+		// The offset from the bottom of the tree to the start of the side nodes
+		// i-offsetOfSideNodes is the index into sideNodes[]
+		offsetOfSideNodes := smt.depth() - len(sideNodes)
+
+		if i-offsetOfSideNodes < 0 || sideNodes[i-offsetOfSideNodes] == nil {
+			if commonPrefixCount != smt.depth() && commonPrefixCount > smt.depth()-1-i {
 				// If there are no sidenodes at this height, but the number of
 				// bits that the paths of the two leaf nodes share in common is
 				// greater than this height, then we need to build up the tree
@@ -298,10 +302,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 				continue
 			}
 		} else {
-			copy(sideNode, sideNodes[i])
+			copy(sideNode, sideNodes[i-offsetOfSideNodes])
 		}
 
-		if hasBit(path, i) == right {
+		if getBitAtFromMSB(path, smt.depth()-1-i) == right {
 			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
@@ -320,7 +324,9 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 // Returns an array of sibling nodes, the leaf hash found at that path and the
 // leaf data. If the leaf is a placeholder, the leaf data is nil.
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, []byte, error) {
-	sideNodes := make([][]byte, smt.depth())
+	// Side nodes for the path. Nodes are inserted in reverse order, then the
+	// slice is reversed at the end.
+	sideNodes := make([][]byte, 0, smt.depth())
 
 	if bytes.Equal(root, smt.th.placeholder()) {
 		// If the root is a placeholder, there are no sidenodes to return.
@@ -341,17 +347,17 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		leftNode, rightNode := smt.th.parseNode(currentData)
 
 		// Get sidenode depending on whether the path bit is on or off.
-		if hasBit(path, i) == right {
-			sideNodes[i] = leftNode
+		if getBitAtFromMSB(path, i) == right {
+			sideNodes = append(sideNodes, leftNode)
 			nodeHash = rightNode
 		} else {
-			sideNodes[i] = rightNode
+			sideNodes = append(sideNodes, rightNode)
 			nodeHash = leftNode
 		}
 
 		if bytes.Equal(nodeHash, smt.th.placeholder()) {
 			// If the node is a placeholder, we've reached the end.
-			return sideNodes, nodeHash, nil, nil
+			return reverseSideNodes(sideNodes), nodeHash, nil, nil
 		}
 
 		currentData, err = smt.ms.Get(nodeHash)
@@ -363,7 +369,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		}
 	}
 
-	return sideNodes, nodeHash, currentData, err
+	return reverseSideNodes(sideNodes), nodeHash, currentData, nil
 }
 
 // Prove generates a Merkle proof for a key.
