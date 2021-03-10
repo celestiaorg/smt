@@ -1,3 +1,3 @@
-module github.com/lazyledger/smt
+module github.com/celer-network/smt
 
-go 1.14
+go 1.15

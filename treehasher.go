@@ -5,19 +5,25 @@ import (
 	"hash"
 )
 
-var leafPrefix = []byte{0}
-var nodePrefix = []byte{1}
+const (
+	PathLen = 4 // num of bytes for path, 32bit
+)
+
+var (
+	leafPrefix = []byte{0}
+	nodePrefix = []byte{1}
+)
+
+type Path [PathLen]byte
 
 type treeHasher struct {
 	hasher hash.Hash
 }
 
 func newTreeHasher(hasher hash.Hash) *treeHasher {
-	th := treeHasher{
+	return &treeHasher{
 		hasher: hasher,
 	}
-
-	return &th
 }
 
 func (th *treeHasher) digest(data []byte) []byte {
@@ -27,8 +33,18 @@ func (th *treeHasher) digest(data []byte) []byte {
 	return sum
 }
 
+// path always return []byte length PathLen
+// it includes last PathLen bytes of key or if len(key) is less than PathLen, left pad 0
 func (th *treeHasher) path(key []byte) []byte {
-	return th.digest(key)
+	var p Path
+	klen := len(key)
+	if klen > PathLen {
+		// only keep last PathLen bytes of key
+		key = key[klen-PathLen:]
+		klen = PathLen
+	}
+	copy(p[PathLen-klen:], key)
+	return p[:]
 }
 
 func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {
@@ -72,7 +88,7 @@ func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
 }
 
 func (th *treeHasher) pathSize() int {
-	return th.hasher.Size()
+	return PathLen
 }
 
 func (th *treeHasher) placeholder() []byte {
