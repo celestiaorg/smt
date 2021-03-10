@@ -321,21 +321,14 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 }
 
 // Get all the sibling nodes (sidenodes) for a given path from a given root.
-<<<<<<< HEAD
 // Returns an array of sibling nodes, the leaf hash found at that path, the
 // leaf data, and the sibling data.
 //
 // If the leaf is a placeholder, the leaf data is nil.
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, []byte, []byte, error) {
-	sideNodes := make([][]byte, smt.depth())
-=======
-// Returns an array of sibling nodes, the leaf hash found at that path and the
-// leaf data. If the leaf is a placeholder, the leaf data is nil.
-func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, []byte, error) {
 	// Side nodes for the path. Nodes are inserted in reverse order, then the
 	// slice is reversed at the end.
 	sideNodes := make([][]byte, 0, smt.depth())
->>>>>>> master
 
 	if bytes.Equal(root, smt.th.placeholder()) {
 		// If the root is a placeholder, there are no sidenodes to return.
