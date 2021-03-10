@@ -323,7 +323,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 // Returns an array of sibling nodes, the leaf hash found at that path and the
 // leaf data. If the leaf is a placeholder, the leaf data is nil.
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, []byte, error) {
-	var sideNodes [][]byte
+	sideNodes := make([][]byte, 0, smt.depth())
 
 	if bytes.Equal(root, smt.th.placeholder()) {
 		// If the root is a placeholder, there are no sidenodes to return.
