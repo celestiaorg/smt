@@ -47,8 +47,7 @@ func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []b
 
 	// Update sibling node
 	if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
-		// TODO first side node
-		err := dsmst.ms.Set(proof.SideNodes[len(proof.SideNodes)-1], proof.SiblingData)
+		err := dsmst.ms.Set(proof.SideNodes[0], proof.SiblingData)
 		if err != nil {
 			return err
 		}

@@ -43,10 +43,9 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 	}
 
 	// Check that the sibling data hashes to the last side node
-	// TODO this should be first node
 	siblingHash := th.digest(proof.SiblingData)
 	if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
-		if !bytes.Equal(proof.SideNodes[len(proof.SideNodes)-1], siblingHash) {
+		if !bytes.Equal(proof.SideNodes[0], siblingHash) {
 			return false
 		}
 	}
