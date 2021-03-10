@@ -380,7 +380,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		}
 	}
 
-	return reverseSideNodes(sideNodes), nodeHash, currentData, siblingData, err
+	return reverseSideNodes(sideNodes), nodeHash, currentData, siblingData, nil
 }
 
 // Prove generates a Merkle proof for a key.
