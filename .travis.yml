@@ -1,6 +1,0 @@
-language: go
-before_install:
-  - go get github.com/mattn/goveralls
-script:
-  - diff -u <(echo -n) <(gofmt -d .)
-  - goveralls -v -service=travis-ci
