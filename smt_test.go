@@ -168,7 +168,117 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 }
 
-// Test tree operations when two leafs are immediate neighbours.
+// Test known tree ops
+func TestSparseMerkleTreeKnown(t *testing.T) {
+	h := newDummyHasher(sha256.New())
+	sm := NewSimpleMap()
+	smt := NewSparseMerkleTree(sm, h)
+	var value []byte
+	var err error
+
+	baseKey := make([]byte, h.Size()+4)
+	key1 := make([]byte, h.Size()+4)
+	copy(key1, baseKey)
+	key1[4] = byte(0b00000000)
+	key2 := make([]byte, h.Size()+4)
+	copy(key2, baseKey)
+	key2[4] = byte(0b01000000)
+	key3 := make([]byte, h.Size()+4)
+	copy(key3, baseKey)
+	key3[4] = byte(0b10000000)
+	key4 := make([]byte, h.Size()+4)
+	copy(key4, baseKey)
+	key4[4] = byte(0b11000000)
+	key5 := make([]byte, h.Size()+4)
+	copy(key5, baseKey)
+	key5[4] = byte(0b11010000)
+
+	_, err = smt.Update(key1, []byte("testValue1"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key2, []byte("testValue2"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key3, []byte("testValue3"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key4, []byte("testValue4"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+	_, err = smt.Update(key5, []byte("testValue5"))
+	if err != nil {
+		t.Errorf("returned error when updating empty key: %v", err)
+	}
+
+	value, err = smt.Get(key1)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue1"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key2)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue2"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key3)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue3"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key4)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue4"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+	value, err = smt.Get(key5)
+	if err != nil {
+		t.Errorf("returned error when getting non-empty key: %v", err)
+	}
+	if !bytes.Equal([]byte("testValue5"), value) {
+		t.Error("did not get correct value when getting non-empty key")
+	}
+
+	proof1, _ := smt.Prove(key1)
+	proof2, _ := smt.Prove(key2)
+	proof3, _ := smt.Prove(key3)
+	proof4, _ := smt.Prove(key4)
+	proof5, _ := smt.Prove(key5)
+	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), h, smt.Root())
+	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof2, key2, []byte("testValue2"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof3, key3, []byte("testValue3"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof4, key4, []byte("testValue4"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+	err = dsmst.AddBranch(proof5, key5, []byte("testValue5"))
+	if err != nil {
+		t.Errorf("returned error when adding branch to deep subtree: %v", err)
+	}
+}
+
+// Test tree operations when two leafs are immediate neighbors.
 func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	h := newDummyHasher(sha256.New())
 	sm := NewSimpleMap()
@@ -176,9 +286,9 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	var value []byte
 	var err error
 
-	// Make two neighbouring keys.
+	// Make two neighboring keys.
 	//
-	// The dummy hash function excepts keys to prefixed with four bytes of 0,
+	// The dummy hash function expects keys to prefixed with four bytes of 0,
 	// which will cause it to return the preimage itself as the digest, without
 	// the first four bytes.
 	key1 := make([]byte, h.Size()+4)
@@ -187,7 +297,8 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	key1[h.Size()+4-1] = byte(0)
 	key2 := make([]byte, h.Size()+4)
 	copy(key2, key1)
-	setBit(key2, (h.Size()+4)*8-1)
+	// We make key2's least significant bit different than key1's
+	key2[h.Size()+4-1] = byte(1)
 
 	_, err = smt.Update(key1, []byte("testValue1"))
 	if err != nil {
@@ -205,13 +316,20 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	if !bytes.Equal([]byte("testValue1"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
-
 	value, err = smt.Get(key2)
 	if err != nil {
 		t.Errorf("returned error when getting non-empty key: %v", err)
 	}
 	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
+	}
+
+	proof, err := smt.Prove(key1)
+	if err != nil {
+		t.Errorf("returned error when proving key: %v", err)
+	}
+	if len(proof.SideNodes) != 256 {
+		t.Errorf("unexpected proof size")
 	}
 }
 

@@ -147,11 +147,11 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 	}
 
 	// Recompute root.
-	for i := len(proof.SideNodes) - 1; i >= 0; i-- {
+	for i := 0; i < len(proof.SideNodes); i++ {
 		node := make([]byte, th.pathSize())
 		copy(node, proof.SideNodes[i])
 
-		if hasBit(path, i) == right {
+		if getBitAtFromMSB(path, len(proof.SideNodes)-1-i) == right {
 			currentHash, currentData = th.digestNode(node, currentHash)
 		} else {
 			currentHash, currentData = th.digestNode(currentHash, node)
@@ -188,7 +188,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 		node := make([]byte, th.hasher.Size())
 		copy(node, proof.SideNodes[i])
 		if bytes.Equal(node, th.placeholder()) {
-			setBit(bitMask, i)
+			setBitAtFromMSB(bitMask, i)
 		} else {
 			compactedSideNodes = append(compactedSideNodes, node)
 		}
@@ -214,7 +214,7 @@ func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMer
 	decompactedSideNodes := make([][]byte, proof.NumSideNodes)
 	position := 0
 	for i := 0; i < proof.NumSideNodes; i++ {
-		if hasBit(proof.BitMask, i) == 1 {
+		if getBitAtFromMSB(proof.BitMask, i) == 1 {
 			decompactedSideNodes[i] = th.placeholder()
 		} else {
 			decompactedSideNodes[i] = proof.SideNodes[position]
