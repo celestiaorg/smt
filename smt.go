@@ -323,6 +323,8 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 // Returns an array of sibling nodes, the leaf hash found at that path and the
 // leaf data. If the leaf is a placeholder, the leaf data is nil.
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byte, []byte, []byte, error) {
+	// Side nodes for the path. Nodes are inserted in reverse order, then the
+	// slice is reversed at the end.
 	sideNodes := make([][]byte, 0, smt.depth())
 
 	if bytes.Equal(root, smt.th.placeholder()) {
@@ -345,20 +347,16 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 
 		// Get sidenode depending on whether the path bit is on or off.
 		if getBitAtFromMSB(path, i) == right {
-			sideNodes = append(sideNodes, nil)
-			copy(sideNodes[1:], sideNodes)
-			sideNodes[0] = leftNode
+			sideNodes = append(sideNodes, leftNode)
 			nodeHash = rightNode
 		} else {
-			sideNodes = append(sideNodes, nil)
-			copy(sideNodes[1:], sideNodes)
-			sideNodes[0] = rightNode
+			sideNodes = append(sideNodes, rightNode)
 			nodeHash = leftNode
 		}
 
 		if bytes.Equal(nodeHash, smt.th.placeholder()) {
 			// If the node is a placeholder, we've reached the end.
-			return sideNodes, nodeHash, nil, nil
+			return reverseSideNodes(sideNodes), nodeHash, nil, nil
 		}
 
 		currentData, err = smt.ms.Get(nodeHash)
@@ -370,7 +368,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte) ([][]byt
 		}
 	}
 
-	return sideNodes, nodeHash, currentData, err
+	return reverseSideNodes(sideNodes), nodeHash, currentData, err
 }
 
 // Prove generates a Merkle proof for a key.
