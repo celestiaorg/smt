@@ -18,9 +18,9 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	var originalRoot []byte
 	copy(originalRoot, smt.Root())
 
-	proof1, _ := smt.Prove([]byte("testKey1"))
-	proof2, _ := smt.Prove([]byte("testKey2"))
-	proof5, _ := smt.Prove([]byte("testKey5"))
+	proof1, _ := smt.ProveUpdatable([]byte("testKey1"))
+	proof2, _ := smt.ProveUpdatable([]byte("testKey2"))
+	proof5, _ := smt.ProveUpdatable([]byte("testKey5"))
 
 	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), sha256.New(), smt.Root())
 	err := dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))

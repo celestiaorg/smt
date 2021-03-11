@@ -18,7 +18,7 @@ type SparseMerkleProof struct {
 	NonMembershipLeafData []byte
 
 	// SiblingData is the data of the sibling node to the leaf being proven,
-	// required for updatable proofs.
+	// required for updatable proofs. For unupdatable proofs, is nil.
 	SiblingData []byte
 }
 
@@ -42,11 +42,13 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 		}
 	}
 
-	// Check that the sibling data hashes to the last side node
-	siblingHash := th.digest(proof.SiblingData)
-	if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
-		if !bytes.Equal(proof.SideNodes[0], siblingHash) {
-			return false
+	// Check that the sibling data hashes to the last side node if not nil
+	if proof.SiblingData != nil {
+		siblingHash := th.digest(proof.SiblingData)
+		if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
+			if !bytes.Equal(proof.SideNodes[0], siblingHash) {
+				return false
+			}
 		}
 	}
 
@@ -73,7 +75,7 @@ type SparseCompactMerkleProof struct {
 	NumSideNodes int
 
 	// SiblingData is the data of the sibling node to the leaf being proven,
-	// required for updatable proofs.
+	// required for updatable proofs. For unupdatable proofs, is nil.
 	SiblingData []byte
 }
 
