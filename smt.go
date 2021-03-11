@@ -388,6 +388,10 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 }
 
 // Prove generates a Merkle proof for a key against the current root.
+//
+// This proof can be used for read-only applications, but should not be used if
+// the leaf may be updated (e.g. in a state transition fraud proof). For
+// updatable proofs, see ProveUpdatable.
 func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
 	proof, err := smt.ProveForRoot(key, smt.Root())
 	return proof, err
@@ -395,6 +399,10 @@ func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
 
 // ProveForRoot generates a Merkle proof for a key, against a specific node.
 // This is primarily useful for generating Merkle proofs for subtrees.
+//
+// This proof can be used for read-only applications, but should not be used if
+// the leaf may be updated (e.g. in a state transition fraud proof). For
+// updatable proofs, see ProveUpdatableForRoot.
 func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkleProof, error) {
 	return smt.doProveForRoot(key, root, false)
 }
