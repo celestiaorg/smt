@@ -345,28 +345,25 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 	}
 
 	var nodeHash []byte
+	var sideNode []byte
 	var siblingData []byte
 	for i := 0; i < smt.depth(); i++ {
 		leftNode, rightNode := smt.th.parseNode(currentData)
 
 		// Get sidenode depending on whether the path bit is on or off.
 		if getBitAtFromMSB(path, i) == right {
-			sideNodes = append(sideNodes, leftNode)
+			sideNode = leftNode
 			nodeHash = rightNode
 		} else {
-			sideNodes = append(sideNodes, rightNode)
+			sideNode = rightNode
 			nodeHash = leftNode
 		}
+		sideNodes = append(sideNodes, sideNode)
 
 		if bytes.Equal(nodeHash, smt.th.placeholder()) {
 			// If the node is a placeholder, we've reached the end.
-			if getSiblingData {
-				siblingData, err = smt.ms.Get(sideNodes[i])
-				if err != nil {
-					return nil, nil, nil, nil, err
-				}
-			}
-			return reverseSideNodes(sideNodes), nodeHash, nil, siblingData, nil
+			currentData = nil
+			break
 		}
 
 		currentData, err = smt.ms.Get(nodeHash)
@@ -374,16 +371,16 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 			return nil, nil, nil, nil, err
 		} else if smt.th.isLeaf(currentData) {
 			// If the node is a leaf, we've reached the end.
-			if getSiblingData {
-				siblingData, err = smt.ms.Get(sideNodes[i])
-				if err != nil {
-					return nil, nil, nil, nil, err
-				}
-			}
 			break
 		}
 	}
 
+	if getSiblingData {
+		siblingData, err = smt.ms.Get(sideNode)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
 	return reverseSideNodes(sideNodes), nodeHash, currentData, siblingData, nil
 }
 
