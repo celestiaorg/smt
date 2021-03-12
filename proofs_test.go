@@ -180,6 +180,21 @@ func TestProofsSanityCheck(t *testing.T) {
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
+
+	// Case: incorrect non-nil sibling data
+	proof, _ = smt.ProveUpdatable([]byte("testKey1"))
+	proof.SiblingData = smt.th.digest(proof.SiblingData)
+	if proof.sanityCheck(th) {
+		t.Error("sanity check incorrectly passed")
+	}
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	if result {
+		t.Error("invalid proof verification returned true")
+	}
+	_, err = CompactProof(proof, smt.th.hasher)
+	if err == nil {
+		t.Error("did not return error when compacting a malformed proof")
+	}
 }
 
 // Test sanity check cases for compact proofs.
