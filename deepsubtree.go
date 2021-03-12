@@ -5,8 +5,8 @@ import (
 	"hash"
 )
 
-// BadProofError is returned when an invalid Merkle proof is supplied.
-var BadProofError = errors.New("bad proof")
+// ErrBadProof is returned when an invalid Merkle proof is supplied.
+var ErrBadProof = errors.New("bad proof")
 
 // DeepSparseMerkleSubTree is a deep Sparse Merkle subtree for working on only a few leafs.
 type DeepSparseMerkleSubTree struct {
@@ -31,7 +31,7 @@ func NewDeepSparseMerkleSubTree(ms MapStore, hasher hash.Hash, root []byte) *Dee
 func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []byte, value []byte) error {
 	result, updates := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher)
 	if !result {
-		return BadProofError
+		return ErrBadProof
 	}
 
 	for _, update := range updates {
