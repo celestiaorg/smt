@@ -2,7 +2,6 @@ package smt
 
 import (
 	"bytes"
-	"errors"
 	"hash"
 	"math"
 )
@@ -161,7 +160,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 	th := newTreeHasher(hasher)
 
 	if !proof.sanityCheck(th) {
-		return SparseCompactMerkleProof{}, errors.New("bad proof")
+		return SparseCompactMerkleProof{}, ErrBadProof
 	}
 
 	bitMask := emptyBytes(int(math.Ceil(float64(len(proof.SideNodes)) / float64(8))))
@@ -189,7 +188,7 @@ func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMer
 	th := newTreeHasher(hasher)
 
 	if !proof.sanityCheck(th) {
-		return SparseMerkleProof{}, errors.New("bad proof")
+		return SparseMerkleProof{}, ErrBadProof
 	}
 
 	decompactedSideNodes := make([][]byte, proof.NumSideNodes)
