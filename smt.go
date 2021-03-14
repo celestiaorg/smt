@@ -3,6 +3,7 @@ package smt
 
 import (
 	"bytes"
+	"errors"
 	"hash"
 )
 
@@ -12,11 +13,7 @@ const (
 
 var defaultValue = []byte{}
 
-type keyAlreadyEmptyError struct{}
-
-func (e *keyAlreadyEmptyError) Error() string {
-	return "key already empty"
-}
+var errKeyAlreadyEmpty = errors.New("key already empty")
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
@@ -162,7 +159,7 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 	if bytes.Equal(value, defaultValue) {
 		// Delete operation.
 		newRoot, err = smt.deleteWithSideNodes(path, sideNodes, oldLeafHash, oldLeafData)
-		if _, ok := err.(*keyAlreadyEmptyError); ok {
+		if errors.Is(err, errKeyAlreadyEmpty) {
 			// This key is already empty; return the old root.
 			return root, nil
 		}
@@ -181,10 +178,10 @@ func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
 func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, oldLeafHash []byte, oldLeafData []byte) ([]byte, error) {
 	if bytes.Equal(oldLeafHash, smt.th.placeholder()) {
 		// This key is already empty as it is a placeholder; return an error.
-		return nil, &keyAlreadyEmptyError{}
+		return nil, errKeyAlreadyEmpty
 	} else if actualPath, _ := smt.th.parseLeaf(oldLeafData); !bytes.Equal(path, actualPath) {
 		// This key is already empty as a different key was found its place; return an error.
-		return nil, &keyAlreadyEmptyError{}
+		return nil, errKeyAlreadyEmpty
 	}
 
 	var currentHash, currentData []byte
