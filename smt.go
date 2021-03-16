@@ -17,16 +17,21 @@ var errKeyAlreadyEmpty = errors.New("key already empty")
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
-	th   treeHasher
-	ms   MapStore
-	root []byte
+	th    treeHasher
+	ms    MapStore
+	root  []byte
+	prune bool
 }
 
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
-func NewSparseMerkleTree(ms MapStore, hasher hash.Hash) *SparseMerkleTree {
+func NewSparseMerkleTree(ms MapStore, hasher hash.Hash, options ...Option) *SparseMerkleTree {
 	smt := SparseMerkleTree{
 		th: *newTreeHasher(hasher),
 		ms: ms,
+	}
+
+	for _, option := range options {
+		option(&smt)
 	}
 
 	smt.SetRoot(smt.th.placeholder())

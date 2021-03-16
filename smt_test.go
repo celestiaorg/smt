@@ -527,7 +527,7 @@ func (h *dummyHasher) BlockSize() int {
 
 func TestOrphanRemoval(t *testing.T) {
 	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New()) /*.WithOption(AutoOrphanRemoval)*/
+	smt := NewSparseMerkleTree(sm, sha256.New(), AutoRemoveOrphans())
 
 	var err error
 	nodeCount := func() int {
