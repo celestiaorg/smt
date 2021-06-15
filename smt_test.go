@@ -526,28 +526,97 @@ func (h *dummyHasher) BlockSize() int {
 }
 
 func TestOrphanRemoval(t *testing.T) {
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New(), AutoRemoveOrphans())
-
+	var sm *SimpleMap
+	var smt *SparseMerkleTree
 	var err error
-	nodeCount := func() int {
+	mappingCount := func() int {
 		return len(sm.m)
 	}
 
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	// only root and leaf
-	if 2 != nodeCount() {
-		t.Errorf("expected 2 tree nodes after insertion, got: %d", nodeCount())
+	setup := func() {
+		sm = NewSimpleMap()
+		smt = NewSparseMerkleTree(sm, sha256.New(), AutoRemoveOrphans())
+		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+		if err != nil {
+			t.Errorf("returned error when updating empty key: %v", err)
+		}
+		// only root and value mapping
+		if 2 != mappingCount() {
+			t.Errorf("expected 2 mappings after insertion, got: %d", mappingCount())
+		}
 	}
 
-	_, err = smt.Delete([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when updating not-empty key: %v", err)
-	}
-	if 0 != nodeCount() {
-		t.Errorf("expected 0 tree nodes after deletion, got: %d", nodeCount())
-	}
+	t.Run("delete 1", func(t *testing.T) {
+		setup()
+		_, err = smt.Delete([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		if 0 != mappingCount() {
+			t.Errorf("expected 0 mappings after deletion, got: %d", mappingCount())
+		}
+	})
+
+	t.Run("overwrite 1", func(t *testing.T) {
+		setup()
+		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		// Overwritten value should be pruned
+		if 2 != mappingCount() {
+			t.Errorf("expected 2 mappings after insertion, got: %d", mappingCount())
+		}
+	})
+
+	t.Run("delete multiple", func(t *testing.T) {
+		type testCase struct {
+			newKey string
+			count  int
+		}
+		for _, tc := range []testCase{
+			{"testKey2", 5}, // common prefix = 0
+			{"foo", 7}} {    // common prefix = 2
+			setup()
+			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if tc.count != mappingCount() {
+				t.Errorf("expected %d mappings after insertion, got: %d", tc.count, mappingCount())
+			}
+			_, err = smt.Delete([]byte("testKey"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if 2 != mappingCount() {
+				t.Errorf("expected 2 mappings after deletion, got: %d", mappingCount())
+			}
+			_, err = smt.Delete([]byte(tc.newKey))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if 0 != mappingCount() {
+				t.Errorf("expected 0 mappings after deletion, got: %d", mappingCount())
+			}
+		}
+	})
+
+	t.Run("overwrite and delete", func(t *testing.T) {
+		setup()
+		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		if 2 != mappingCount() {
+			t.Errorf("expected 2 mappings after insertion, got: %d", mappingCount())
+		}
+		_, err = smt.Delete([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		if 0 != mappingCount() {
+			t.Errorf("expected 0 mappings after deletion, got: %d", mappingCount())
+		}
+	})
 }
