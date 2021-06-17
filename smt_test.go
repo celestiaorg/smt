@@ -619,4 +619,20 @@ func TestOrphanRemoval(t *testing.T) {
 			t.Errorf("expected 0 mappings after deletion, got: %d", mappingCount())
 		}
 	})
+
+	t.Run("delete duplicate value", func(t *testing.T) {
+		setup()
+		_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		_, err = smt.Delete([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		_, err = smt.Delete([]byte("testKey2"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+	})
 }
