@@ -10,15 +10,15 @@ import (
 
 // Test base case Merkle proof operations.
 func TestProofsBasic(t *testing.T) {
-	var sm *SimpleMap
+	var smn, smv *SimpleMap
 	var smt *SparseMerkleTree
 	var proof SparseMerkleProof
 	var result bool
 	var root []byte
 	var err error
 
-	sm = NewSimpleMap()
-	smt = NewSparseMerkleTree(sm, sha256.New())
+	smn, smv = NewSimpleMap(), NewSimpleMap()
+	smt = NewSparseMerkleTree(smn, smv, sha256.New())
 
 	// Generate and verify a proof on an empty key.
 	proof, err = smt.Prove([]byte("testKey3"))
@@ -123,8 +123,8 @@ func TestProofsBasic(t *testing.T) {
 
 // Test sanity check cases for non-compact proofs.
 func TestProofsSanityCheck(t *testing.T) {
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New())
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, sha256.New())
 	th := &smt.th
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
@@ -199,8 +199,8 @@ func TestProofsSanityCheck(t *testing.T) {
 
 // Test sanity check cases for compact proofs.
 func TestCompactProofsSanityCheck(t *testing.T) {
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New())
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, sha256.New())
 	th := &smt.th
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))

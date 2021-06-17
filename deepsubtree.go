@@ -14,15 +14,10 @@ type DeepSparseMerkleSubTree struct {
 }
 
 // NewDeepSparseMerkleSubTree creates a new deep Sparse Merkle subtree on an empty MapStore.
-func NewDeepSparseMerkleSubTree(ms MapStore, hasher hash.Hash, root []byte) *DeepSparseMerkleSubTree {
-	smt := &SparseMerkleTree{
-		th: *newTreeHasher(hasher),
-		ms: ms,
+func NewDeepSparseMerkleSubTree(nodes, values MapStore, hasher hash.Hash, root []byte) *DeepSparseMerkleSubTree {
+	return &DeepSparseMerkleSubTree{
+		SparseMerkleTree: ImportSparseMerkleTree(nodes, values, hasher, root),
 	}
-
-	smt.SetRoot(root)
-
-	return &DeepSparseMerkleSubTree{SparseMerkleTree: smt}
 }
 
 // AddBranch adds a branch to the tree.
@@ -32,14 +27,20 @@ func NewDeepSparseMerkleSubTree(ms MapStore, hasher hash.Hash, root []byte) *Dee
 // If the leaf may be updated (e.g. during a state transition fraud proof),
 // an updatable proof should be used. See SparseMerkleTree.ProveUpdatable.
 func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []byte, value []byte) error {
-	result, updates := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher)
+	result, updates, valueHash := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher)
 	if !result {
 		return ErrBadProof
 	}
 
+	if valueHash != nil {
+		if err := dsmst.values.Set(valueKey(key, valueHash), value); err != nil {
+			return err
+		}
+	}
+
 	// Update nodes along branch
 	for _, update := range updates {
-		err := dsmst.ms.Set(update[0], update[1])
+		err := dsmst.nodes.Set(update[0], update[1])
 		if err != nil {
 			return err
 		}
@@ -48,7 +49,7 @@ func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []b
 	// Update sibling node
 	if proof.SiblingData != nil {
 		if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
-			err := dsmst.ms.Set(proof.SideNodes[0], proof.SiblingData)
+			err := dsmst.nodes.Set(proof.SideNodes[0], proof.SiblingData)
 			if err != nil {
 				return err
 			}

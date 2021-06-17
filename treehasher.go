@@ -20,8 +20,10 @@ func newTreeHasher(hasher hash.Hash) *treeHasher {
 	return &th
 }
 
-func (th *treeHasher) digest(data []byte) []byte {
-	th.hasher.Write(data)
+func (th *treeHasher) digest(data ...[]byte) []byte {
+	for _, item := range data {
+		th.hasher.Write(item)
+	}
 	sum := th.hasher.Sum(nil)
 	th.hasher.Reset()
 	return sum
