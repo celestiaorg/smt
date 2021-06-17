@@ -200,19 +200,13 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 	}
 	var currentHash, currentData []byte
 	nonPlaceholderReached := false
-	for i := 0; i < len(sideNodes); i++ {
+	for i, sideNode := range sideNodes {
 		if smt.prune {
 			// All nodes above the deleted leaf are now orphaned
 			if err := smt.ms.Delete(pathNodes[i+1]); err != nil {
 				return nil, err
 			}
 		}
-		if sideNodes[i] == nil {
-			continue
-		}
-
-		sideNode := make([]byte, smt.th.pathSize())
-		copy(sideNode, sideNodes[i])
 
 		if currentData == nil {
 			sideNodeValue, err := smt.ms.Get(sideNode)
@@ -312,24 +306,24 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	}
 
 	for i := 0; i < smt.depth(); i++ {
-		sideNode := make([]byte, smt.th.pathSize())
+		var sideNode []byte
 
 		// The offset from the bottom of the tree to the start of the side nodes
 		// i-offsetOfSideNodes is the index into sideNodes[]
 		offsetOfSideNodes := smt.depth() - len(sideNodes)
 
-		if i-offsetOfSideNodes < 0 || sideNodes[i-offsetOfSideNodes] == nil {
+		if i-offsetOfSideNodes < 0 {
 			if commonPrefixCount != smt.depth() && commonPrefixCount > smt.depth()-1-i {
 				// If there are no sidenodes at this height, but the number of
 				// bits that the paths of the two leaf nodes share in common is
 				// greater than this depth, then we need to build up the tree
 				// to this depth with placeholder values at siblings.
-				copy(sideNode, smt.th.placeholder())
+				sideNode = smt.th.placeholder()
 			} else {
 				continue
 			}
 		} else {
-			copy(sideNode, sideNodes[i-offsetOfSideNodes])
+			sideNode = sideNodes[i-offsetOfSideNodes]
 			if smt.prune {
 				// Prune the old parent
 				if err := smt.ms.Delete(pathNodes[i-offsetOfSideNodes+1]); err != nil {
