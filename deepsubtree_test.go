@@ -16,7 +16,7 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	smt.Update([]byte("testKey4"), []byte("testValue4"))
 	smt.Update([]byte("testKey6"), []byte("testValue6"))
 
-	var originalRoot []byte
+	originalRoot := make([]byte, len(smt.Root()))
 	copy(originalRoot, smt.Root())
 
 	proof1, _ := smt.ProveUpdatable([]byte("testKey1"))
