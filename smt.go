@@ -165,10 +165,16 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 	var newRoot []byte
 	if bytes.Equal(value, defaultValue) {
 		// Delete operation.
-		newRoot, err = smt.deleteWithSideNodes(key, path, sideNodes, pathNodes, oldLeafData)
+		newRoot, err = smt.deleteWithSideNodes(path, sideNodes, pathNodes, oldLeafData)
 		if errors.Is(err, errKeyAlreadyEmpty) {
 			// This key is already empty; return the old root.
 			return root, nil
+		}
+		if smt.prune {
+			_, valueHash := smt.th.parseLeaf(oldLeafData)
+			if err := smt.values.Delete(valueKey(key, valueHash)); err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		// Insert or update operation.
@@ -182,12 +188,12 @@ func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
 	return smt.UpdateForRoot(key, defaultValue, root)
 }
 
-func (smt *SparseMerkleTree) deleteWithSideNodes(key, path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
+func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
 	if bytes.Equal(pathNodes[0], smt.th.placeholder()) {
 		// This key is already empty as it is a placeholder; return an error.
 		return nil, errKeyAlreadyEmpty
 	}
-	actualPath, valueHash := smt.th.parseLeaf(oldLeafData)
+	actualPath, _ := smt.th.parseLeaf(oldLeafData)
 	if !bytes.Equal(path, actualPath) {
 		// This key is already empty as a different key was found its place; return an error.
 		return nil, errKeyAlreadyEmpty
@@ -198,9 +204,6 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(key, path []byte, sideNodes [][
 			if err := smt.nodes.Delete(node); err != nil {
 				return nil, err
 			}
-		}
-		if err := smt.values.Delete(valueKey(key, valueHash)); err != nil {
-			return nil, err
 		}
 	}
 	var currentHash, currentData []byte
