@@ -257,9 +257,6 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 
 func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
 	valueHash := smt.th.digest(value)
-	if err := smt.values.Set(valueKey(key, valueHash), value); err != nil {
-		return nil, err
-	}
 	currentHash, currentData := smt.th.digestLeaf(path, valueHash)
 	if err := smt.nodes.Set(currentHash, currentData); err != nil {
 		return nil, err
@@ -295,6 +292,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 
 		currentData = currentHash
 	} else if smt.prune && oldValueHash != nil {
+		// Short-circuit if the same value is being set
+		if bytes.Equal(oldValueHash, valueHash) {
+			return smt.root, nil
+		}
 		// If an old leaf exists, remove it
 		if err := smt.nodes.Delete(pathNodes[0]); err != nil {
 			return nil, err
@@ -343,6 +344,9 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 			return nil, err
 		}
 		currentData = currentHash
+	}
+	if err := smt.values.Set(valueKey(key, valueHash), value); err != nil {
+		return nil, err
 	}
 
 	return currentHash, nil
