@@ -99,71 +99,13 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
-	// Test that updating a key still allows old values to be accessed from old roots.
-	root := smt.Root()
-	smt.Update([]byte("testKey"), []byte("testValue3"))
-	value, err = smt.GetForRoot([]byte("testKey"), root)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-
-	// Test that it is possible to successfully update a key in an older root.
-	root, err = smt.UpdateForRoot([]byte("testKey3"), []byte("testValue4"), root)
-	if err != nil {
-		t.Errorf("unable to update key: %v", err)
-	}
-	value, err = smt.GetForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue4"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.GetForRoot([]byte("testKey"), root)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	has, err = smt.HasForRoot([]byte("testKey"), root)
-	if err != nil {
-		t.Errorf("returned error when checking presence of non-empty key: %v", err)
-	}
-	if !has {
-		t.Error("did not get 'false' when checking presence of non-empty key")
-	}
-
-	// Test that it is possible to delete key in an older root.
-	root, err = smt.DeleteForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("unable to delete key: %v", err)
-	}
-	value, err = smt.GetForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("returned error when getting empty key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get correct value when getting empty key")
-	}
-	has, err = smt.HasForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("returned error when checking presence of empty key: %v", err)
-	}
-	if has {
-		t.Error("did not get 'false' when checking presence of empty key")
-	}
-
 	// Test that a tree can be imported from a MapStore.
 	smt2 := ImportSparseMerkleTree(smn, smv, sha256.New(), smt.Root())
 	value, err = smt2.Get([]byte("testKey"))
 	if err != nil {
 		t.Error("returned error when getting non-empty key")
 	}
-	if !bytes.Equal([]byte("testValue3"), value) {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 }
@@ -535,7 +477,7 @@ func TestOrphanRemoval(t *testing.T) {
 
 	setup := func() {
 		smn, smv = NewSimpleMap(), NewSimpleMap()
-		smt = NewSparseMerkleTree(smn, smv, sha256.New(), AutoRemoveOrphans())
+		smt = NewSparseMerkleTree(smn, smv, sha256.New())
 		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
 		if err != nil {
 			t.Errorf("returned error when updating empty key: %v", err)

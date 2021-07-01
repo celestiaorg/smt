@@ -20,7 +20,6 @@ type SparseMerkleTree struct {
 	th            treeHasher
 	nodes, values MapStore
 	root          []byte
-	prune         bool
 }
 
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
@@ -170,12 +169,11 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 			// This key is already empty; return the old root.
 			return root, nil
 		}
-		if smt.prune {
-			_, valueHash := smt.th.parseLeaf(oldLeafData)
-			if err := smt.values.Delete(valueKey(key, valueHash)); err != nil {
-				return nil, err
-			}
+		_, valueHash := smt.th.parseLeaf(oldLeafData)
+		if err := smt.values.Delete(valueKey(key, valueHash)); err != nil {
+			return nil, err
 		}
+
 	} else {
 		// Insert or update operation.
 		newRoot, err = smt.updateWithSideNodes(key, path, value, sideNodes, pathNodes, oldLeafData)
@@ -198,14 +196,13 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 		// This key is already empty as a different key was found its place; return an error.
 		return nil, errKeyAlreadyEmpty
 	}
-	if smt.prune {
-		// All nodes above the deleted leaf are now orphaned
-		for _, node := range pathNodes {
-			if err := smt.nodes.Delete(node); err != nil {
-				return nil, err
-			}
+	// All nodes above the deleted leaf are now orphaned
+	for _, node := range pathNodes {
+		if err := smt.nodes.Delete(node); err != nil {
+			return nil, err
 		}
 	}
+
 	var currentHash, currentData []byte
 	nonPlaceholderReached := false
 	for i, sideNode := range sideNodes {
@@ -291,7 +288,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 		}
 
 		currentData = currentHash
-	} else if smt.prune && oldValueHash != nil {
+	} else if oldValueHash != nil {
 		// Short-circuit if the same value is being set
 		if bytes.Equal(oldValueHash, valueHash) {
 			return smt.root, nil
@@ -304,12 +301,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 			return nil, err
 		}
 	}
-	if smt.prune {
-		// All remaining path nodes are orphaned
-		for i := 1; i < len(pathNodes); i++ {
-			if err := smt.nodes.Delete(pathNodes[i]); err != nil {
-				return nil, err
-			}
+	// All remaining path nodes are orphaned
+	for i := 1; i < len(pathNodes); i++ {
+		if err := smt.nodes.Delete(pathNodes[i]); err != nil {
+			return nil, err
 		}
 	}
 
