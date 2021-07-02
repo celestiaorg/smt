@@ -49,9 +49,3 @@ func reverseByteSlices(sideNodes [][]byte) [][]byte {
 
 	return sideNodes
 }
-
-func valueKey(key, root []byte) []byte {
-	ret := make([]byte, len(root), len(root)+len(key))
-	copy(ret, root)
-	return append(ret, key...)
-}

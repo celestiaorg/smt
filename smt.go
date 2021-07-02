@@ -85,13 +85,13 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 			return nil, err
 		} else if smt.th.isLeaf(currentData) {
 			// We've reached the end. Is this the actual leaf?
-			p, valueHash := smt.th.parseLeaf(currentData)
+			p, _ := smt.th.parseLeaf(currentData)
 			if !bytes.Equal(path, p) {
 				// Nope. Therefore the key is actually empty.
 				return defaultValue, nil
 			}
 			// Otherwise, yes. Return the value.
-			value, err := smt.values.Get(valueKey(key, valueHash))
+			value, err := smt.values.Get(path)
 			if err != nil {
 				return nil, err
 			}
@@ -114,12 +114,7 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	// The following lines of code should only be reached if the path is 256
 	// nodes high, which should be very unlikely if the underlying hash function
 	// is collision-resistant.
-	currentData, err := smt.nodes.Get(currentHash)
-	if err != nil {
-		return nil, err
-	}
-	_, valueHash := smt.th.parseLeaf(currentData)
-	value, err := smt.values.Get(valueKey(key, valueHash))
+	value, err := smt.values.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +164,7 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 			// This key is already empty; return the old root.
 			return root, nil
 		}
-		_, valueHash := smt.th.parseLeaf(oldLeafData)
-		if err := smt.values.Delete(valueKey(key, valueHash)); err != nil {
+		if err := smt.values.Delete(path); err != nil {
 			return nil, err
 		}
 
@@ -297,7 +291,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 		if err := smt.nodes.Delete(pathNodes[0]); err != nil {
 			return nil, err
 		}
-		if err := smt.values.Delete(valueKey(key, oldValueHash)); err != nil {
+		if err := smt.values.Delete(path); err != nil {
 			return nil, err
 		}
 	}
@@ -340,7 +334,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 		}
 		currentData = currentHash
 	}
-	if err := smt.values.Set(valueKey(key, valueHash), value); err != nil {
+	if err := smt.values.Set(path, value); err != nil {
 		return nil, err
 	}
 
