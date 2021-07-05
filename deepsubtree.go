@@ -33,7 +33,7 @@ func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []b
 	}
 
 	if valueHash != nil {
-		if err := dsmst.values.Set(dsmst.SparseMerkleTree.th.path(key), value); err != nil {
+		if err := dsmst.values.Set(dsmst.th.path(key), value); err != nil {
 			return err
 		}
 	}
