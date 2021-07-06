@@ -103,20 +103,19 @@ func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
 
 // VerifyProof verifies a Merkle proof.
 func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-	result, _, _ := verifyProofWithUpdates(proof, root, key, value, hasher)
+	result, _ := verifyProofWithUpdates(proof, root, key, value, hasher)
 	return result
 }
 
-func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) (bool, [][][]byte, []byte) {
+func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) (bool, [][][]byte) {
 	th := newTreeHasher(hasher)
 	path := th.path(key)
 
 	if !proof.sanityCheck(th) {
-		return false, nil, nil
+		return false, nil
 	}
 
 	var updates [][][]byte
-	var memberValueHash []byte
 
 	// Determine what the leaf hash should be.
 	var currentHash, currentData []byte
@@ -127,7 +126,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 			actualPath, valueHash := th.parseLeaf(proof.NonMembershipLeafData)
 			if bytes.Equal(actualPath, path) {
 				// This is not an unrelated leaf; non-membership proof failed.
-				return false, nil, nil
+				return false, nil
 			}
 			currentHash, currentData = th.digestLeaf(actualPath, valueHash)
 
@@ -136,8 +135,8 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 			updates = append(updates, update)
 		}
 	} else { // Membership proof.
-		memberValueHash = th.digest(value)
-		currentHash, currentData = th.digestLeaf(path, memberValueHash)
+		valueHash := th.digest(value)
+		currentHash, currentData = th.digestLeaf(path, valueHash)
 		update := make([][]byte, 2)
 		update[0], update[1] = currentHash, currentData
 		updates = append(updates, update)
@@ -159,7 +158,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		updates = append(updates, update)
 	}
 
-	return bytes.Equal(currentHash, root), updates, memberValueHash
+	return bytes.Equal(currentHash, root), updates
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
