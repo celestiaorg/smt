@@ -10,8 +10,8 @@ import (
 
 // Test base case tree update operations with a few keys.
 func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New())
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, sha256.New())
 	var value []byte
 	var has bool
 	var err error
@@ -65,8 +65,8 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
-	// Test updating a second empty key where the path for both keys start with
-	// different bits (when using SHA256).
+	// Test updating a second empty key where the path for both keys share the
+	// first 2 bits (when using SHA256).
 	_, err = smt.Update([]byte("foo"), []byte("testValue"))
 	if err != nil {
 		t.Errorf("returned error when updating empty second key: %v", err)
@@ -99,71 +99,13 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 
-	// Test that updating a key still allows old values to be acessed from old roots.
-	root := smt.Root()
-	smt.Update([]byte("testKey"), []byte("testValue3"))
-	value, err = smt.GetForRoot([]byte("testKey"), root)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-
-	// Test that it is possible to successfully update a key in an older root.
-	root, err = smt.UpdateForRoot([]byte("testKey3"), []byte("testValue4"), root)
-	if err != nil {
-		t.Errorf("unable to update key: %v", err)
-	}
-	value, err = smt.GetForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue4"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.GetForRoot([]byte("testKey"), root)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	has, err = smt.HasForRoot([]byte("testKey"), root)
-	if err != nil {
-		t.Errorf("returned error when checking presence of non-empty key: %v", err)
-	}
-	if !has {
-		t.Error("did not get 'false' when checking presence of non-empty key")
-	}
-
-	// Test that it is possible to delete key in an older root.
-	root, err = smt.DeleteForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("unable to delete key: %v", err)
-	}
-	value, err = smt.GetForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("returned error when getting empty key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get correct value when getting empty key")
-	}
-	has, err = smt.HasForRoot([]byte("testKey3"), root)
-	if err != nil {
-		t.Errorf("returned error when checking presence of empty key: %v", err)
-	}
-	if has {
-		t.Error("did not get 'false' when checking presence of empty key")
-	}
-
 	// Test that a tree can be imported from a MapStore.
-	smt2 := ImportSparseMerkleTree(sm, sha256.New(), smt.Root())
+	smt2 := ImportSparseMerkleTree(smn, smv, sha256.New(), smt.Root())
 	value, err = smt2.Get([]byte("testKey"))
 	if err != nil {
 		t.Error("returned error when getting non-empty key")
 	}
-	if !bytes.Equal([]byte("testValue3"), value) {
+	if !bytes.Equal([]byte("testValue2"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
 }
@@ -171,8 +113,8 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 // Test known tree ops
 func TestSparseMerkleTreeKnown(t *testing.T) {
 	h := newDummyHasher(sha256.New())
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, h)
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, h)
 	var value []byte
 	var err error
 
@@ -255,7 +197,7 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 	proof3, _ := smt.Prove(key3)
 	proof4, _ := smt.Prove(key4)
 	proof5, _ := smt.Prove(key5)
-	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), h, smt.Root())
+	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), NewSimpleMap(), h, smt.Root())
 	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
@@ -281,8 +223,8 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 // Test tree operations when two leafs are immediate neighbors.
 func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	h := newDummyHasher(sha256.New())
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, h)
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, h)
 	var value []byte
 	var err error
 
@@ -335,8 +277,8 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 
 // Test base case tree delete operations with a few keys.
 func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New())
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, sha256.New())
 
 	// Testing inserting, deleting a key, and inserting it again.
 	_, err := smt.Update([]byte("testKey"), []byte("testValue"))
@@ -404,8 +346,8 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 		t.Error("tree root is not as expected after deleting second key")
 	}
 
-	// Test inserting and deleting a different second key, when the the first
-	// bits of the path for the two keys in the tree are different (when using SHA256).
+	// Test inserting and deleting a different second key, when the the first 2
+	// bits of the path for the two keys in the tree are the same (when using SHA256).
 	_, err = smt.Update([]byte("foo"), []byte("testValue"))
 	if err != nil {
 		t.Errorf("unable to update key: %v", err)
@@ -526,28 +468,149 @@ func (h *dummyHasher) BlockSize() int {
 }
 
 func TestOrphanRemoval(t *testing.T) {
-	sm := NewSimpleMap()
-	smt := NewSparseMerkleTree(sm, sha256.New(), AutoRemoveOrphans())
-
+	var smn, smv *SimpleMap
+	var smt *SparseMerkleTree
 	var err error
 	nodeCount := func() int {
-		return len(sm.m)
+		return len(smn.m)
 	}
 
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	// only root and leaf
-	if 2 != nodeCount() {
-		t.Errorf("expected 2 tree nodes after insertion, got: %d", nodeCount())
+	setup := func() {
+		smn, smv = NewSimpleMap(), NewSimpleMap()
+		smt = NewSparseMerkleTree(smn, smv, sha256.New())
+		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+		if err != nil {
+			t.Errorf("returned error when updating empty key: %v", err)
+		}
+		// only root and value mapping
+		if 1 != nodeCount() {
+			t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
+		}
 	}
 
-	_, err = smt.Delete([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when updating not-empty key: %v", err)
+	t.Run("delete 1", func(t *testing.T) {
+		setup()
+		_, err = smt.Delete([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		if 0 != nodeCount() {
+			t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
+		}
+	})
+
+	t.Run("overwrite 1", func(t *testing.T) {
+		setup()
+		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		// Overwritten value should be pruned
+		if 1 != nodeCount() {
+			t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
+		}
+	})
+
+	type testCase struct {
+		newKey string
+		count  int
 	}
-	if 0 != nodeCount() {
-		t.Errorf("expected 0 tree nodes after deletion, got: %d", nodeCount())
+	cases := []testCase{
+		{"testKey2", 3}, // common prefix = 0, root + 2 leaves
+		{"foo", 5},      // common prefix = 2, root + 2 node branch + 2 leaves
 	}
+
+	t.Run("delete multiple", func(t *testing.T) {
+		for _, tc := range cases {
+			setup()
+			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if tc.count != nodeCount() {
+				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
+			}
+			_, err = smt.Delete([]byte("testKey"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if 1 != nodeCount() {
+				t.Errorf("expected 1 nodes after deletion, got: %d", nodeCount())
+			}
+			_, err = smt.Delete([]byte(tc.newKey))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if 0 != nodeCount() {
+				t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
+			}
+		}
+	})
+
+	t.Run("overwrite and delete", func(t *testing.T) {
+		setup()
+		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		if 1 != nodeCount() {
+			t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
+		}
+		_, err = smt.Delete([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		if 0 != nodeCount() {
+			t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
+		}
+
+		for _, tc := range cases {
+			setup()
+			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if tc.count != nodeCount() {
+				t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
+			}
+			_, err = smt.Update([]byte(tc.newKey), []byte("testValue3"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if tc.count != nodeCount() {
+				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
+			}
+			_, err = smt.Delete([]byte("testKey"))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if 1 != nodeCount() {
+				t.Errorf("expected 1 nodes after deletion, got: %d", nodeCount())
+			}
+			_, err = smt.Delete([]byte(tc.newKey))
+			if err != nil {
+				t.Errorf("returned error when updating non-empty key: %v", err)
+			}
+			if 0 != nodeCount() {
+				t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
+			}
+
+		}
+	})
+
+	t.Run("delete duplicate value", func(t *testing.T) {
+		setup()
+		_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		_, err = smt.Delete([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+		_, err = smt.Delete([]byte("testKey2"))
+		if err != nil {
+			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+	})
 }

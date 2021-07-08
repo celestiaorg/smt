@@ -42,10 +42,10 @@ func emptyBytes(length int) []byte {
 	return b
 }
 
-func reverseSideNodes(sideNodes [][]byte) [][]byte {
-	for left, right := 0, len(sideNodes)-1; left < right; left, right = left+1, right-1 {
-		sideNodes[left], sideNodes[right] = sideNodes[right], sideNodes[left]
+func reverseByteSlices(slices [][]byte) [][]byte {
+	for left, right := 0, len(slices)-1; left < right; left, right = left+1, right-1 {
+		slices[left], slices[right] = slices[right], slices[left]
 	}
 
-	return sideNodes
+	return slices
 }

@@ -136,12 +136,8 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		}
 	} else { // Membership proof.
 		valueHash := th.digest(value)
-		update := make([][]byte, 2)
-		update[0], update[1] = valueHash, value
-		updates = append(updates, update)
-
 		currentHash, currentData = th.digestLeaf(path, valueHash)
-		update = make([][]byte, 2)
+		update := make([][]byte, 2)
 		update[0], update[1] = currentHash, currentData
 		updates = append(updates, update)
 	}
