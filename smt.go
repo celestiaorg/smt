@@ -302,14 +302,14 @@ func (smt *SparseMerkleTree) updateWithSideNodes(key, path []byte, value []byte,
 		}
 	}
 
+	// The offset from the bottom of the tree to the start of the side nodes.
+	// Note: i-offsetOfSideNodes is the index into sideNodes[]
+	offsetOfSideNodes := smt.depth() - len(sideNodes)
+
 	for i := 0; i < smt.depth(); i++ {
 		var sideNode []byte
 
-		// The offset from the bottom of the tree to the start of the side nodes
-		// i-offsetOfSideNodes is the index into sideNodes[]
-		offsetOfSideNodes := smt.depth() - len(sideNodes)
-
-		if i-offsetOfSideNodes < 0 {
+		if i-offsetOfSideNodes < 0 || sideNodes[i-offsetOfSideNodes] == nil {
 			if commonPrefixCount != smt.depth() && commonPrefixCount > smt.depth()-1-i {
 				// If there are no sidenodes at this height, but the number of
 				// bits that the paths of the two leaf nodes share in common is
