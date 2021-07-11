@@ -2,9 +2,9 @@
 
 A Go library that implements a Sparse Merkle tree for a key-value map. The tree implements the same optimisations specified in the [Libra whitepaper](https://developers.libra.org/docs/assets/papers/the-libra-blockchain/2020-05-26.pdf), to reduce the number of hash operations required per tree operation to O(k) where k is the number of non-empty elements in the tree.
 
-[![Tests](https://github.com/lazyledger/smt/actions/workflows/test.yml/badge.svg)](https://github.com/lazyledger/smt/actions/workflows/test.yml)
-[![Coverage Status](https://coveralls.io/repos/github/lazyledger/smt/badge.svg?branch=master)](https://coveralls.io/github/lazyledger/smt?branch=master)
-[![GoDoc](https://godoc.org/github.com/lazyledger/smt?status.svg)](https://godoc.org/github.com/lazyledger/smt)
+[![Tests](https://github.com/celestiaorg/smt/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/smt/actions/workflows/test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/celestiaorg/smt/badge.svg?branch=master)](https://coveralls.io/github/celestiaorg/smt?branch=master)
+[![GoDoc](https://godoc.org/github.com/celestiaorg/smt?status.svg)](https://godoc.org/github.com/celestiaorg/smt)
 
 ## Example
 
@@ -14,7 +14,7 @@ package main
 import(
     "fmt"
     "crypto/sha256"
-    "github.com/lazyledger/smt"
+    "github.com/celestiaorg/smt"
 )
 
 func main() {
