@@ -64,14 +64,11 @@ func (smt *SparseMerkleTree) depth() int {
 	return smt.th.pathSize() * 8
 }
 
-// Get gets a key from the tree.
+// Get gets the value of a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
-	value, err := smt.GetForRoot(key, smt.Root())
-	return value, err
-}
+	// Get tree's root
+	root := smt.Root()
 
-// GetForRoot gets a key from the tree at a specific root.
-func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
 	if bytes.Equal(root, smt.th.placeholder()) {
 		// The tree is empty, return the default value.
 		return defaultValue, nil
@@ -121,15 +118,10 @@ func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error)
 	return value, nil
 }
 
-// Has returns true if tree contains given key, false otherwise.
+// Has returns true if the value at the given key is non-default, false
+// otherwise.
 func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
 	val, err := smt.Get(key)
-	return !bytes.Equal(defaultValue, val), err
-}
-
-// HasForRoot returns true if tree contains given key at a specific root, false otherwise.
-func (smt *SparseMerkleTree) HasForRoot(key, root []byte) (bool, error) {
-	val, err := smt.GetForRoot(key, root)
 	return !bytes.Equal(defaultValue, val), err
 }
 
