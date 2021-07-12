@@ -76,8 +76,17 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 
 	path := smt.th.path(key)
 	value, err := smt.values.Get(path)
+
 	if err != nil {
-		return defaultValue, nil
+		var invalidKeyError *InvalidKeyError
+
+		if errors.As(err, &invalidKeyError) {
+			// If key isn't found, return default value
+			return defaultValue, nil
+		} else {
+			// Otherwise percolate up any other error
+			return nil, err
+		}
 	}
 	return value, nil
 }
