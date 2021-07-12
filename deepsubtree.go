@@ -59,3 +59,68 @@ func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []b
 
 	return nil
 }
+
+// GetDescend gets the value of a key from the tree by descending it.
+// Use if a key was _not_ previously added with AddBranch, otherwise use Get.
+// Errors if the key cannot be reached by descending.
+func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
+	// Get tree's root
+	root := smt.Root()
+
+	if bytes.Equal(root, smt.th.placeholder()) {
+		// The tree is empty, return the default value.
+		return defaultValue, nil
+	}
+
+	path := smt.th.path(key)
+	currentHash := root
+	for i := 0; i < smt.depth(); i++ {
+		currentData, err := smt.nodes.Get(currentHash)
+		if err != nil {
+			return nil, err
+		} else if smt.th.isLeaf(currentData) {
+			// We've reached the end. Is this the actual leaf?
+			p, _ := smt.th.parseLeaf(currentData)
+			if !bytes.Equal(path, p) {
+				// Nope. Therefore the key is actually empty.
+				return defaultValue, nil
+			}
+			// Otherwise, yes. Return the value.
+			value, err := smt.values.Get(path)
+			if err != nil {
+				return nil, err
+			}
+			return value, nil
+		}
+
+		leftNode, rightNode := smt.th.parseNode(currentData)
+		if getBitAtFromMSB(path, i) == right {
+			currentHash = rightNode
+		} else {
+			currentHash = leftNode
+		}
+
+		if bytes.Equal(currentHash, smt.th.placeholder()) {
+			// We've hit a placeholder value; this is the end.
+			return defaultValue, nil
+		}
+	}
+
+	// The following lines of code should only be reached if the path is 256
+	// nodes high, which should be very unlikely if the underlying hash function
+	// is collision-resistant.
+	value, err := smt.values.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+// HasDescend returns true if the value at the given key is non-default, false
+// otherwise.
+// Use if a key was _not_ previously added with AddBranch, otherwise use Has.
+// Errors if the key cannot be reached by descending.
+func (smt *SparseMerkleTree) HasDescend(key []byte) (bool, error) {
+	val, err := smt.GetDescend(key)
+	return !bytes.Equal(defaultValue, val), err
+}

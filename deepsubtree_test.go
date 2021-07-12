@@ -44,7 +44,21 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	if !bytes.Equal(value, []byte("testValue1")) {
 		t.Error("did not get correct value in deep subtree")
 	}
+	value, err = dsmst.GetDescend([]byte("testKey1"))
+	if err != nil {
+		t.Errorf("returned error when getting value in deep subtree: %v", err)
+	}
+	if !bytes.Equal(value, []byte("testValue1")) {
+		t.Error("did not get correct value in deep subtree")
+	}
 	value, err = dsmst.Get([]byte("testKey2"))
+	if err != nil {
+		t.Errorf("returned error when getting value in deep subtree: %v", err)
+	}
+	if !bytes.Equal(value, []byte("testValue2")) {
+		t.Error("did not get correct value in deep subtree")
+	}
+	value, err = dsmst.GetDescend([]byte("testKey2"))
 	if err != nil {
 		t.Errorf("returned error when getting value in deep subtree: %v", err)
 	}
@@ -58,7 +72,14 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	if !bytes.Equal(value, defaultValue) {
 		t.Error("did not get correct value in deep subtree")
 	}
-	value, err = dsmst.Get([]byte("testKey6"))
+	value, err = dsmst.GetDescend([]byte("testKey5"))
+	if err != nil {
+		t.Errorf("returned error when getting value in deep subtree: %v", err)
+	}
+	if !bytes.Equal(value, defaultValue) {
+		t.Error("did not get correct value in deep subtree")
+	}
+	_, err = dsmst.GetDescend([]byte("testKey6"))
 	if err == nil {
 		t.Error("did not error when getting non-added value in deep subtree")
 	}

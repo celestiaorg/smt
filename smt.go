@@ -64,72 +64,37 @@ func (smt *SparseMerkleTree) depth() int {
 	return smt.th.pathSize() * 8
 }
 
-// Get gets a key from the tree.
+// Get gets the value of a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
-	value, err := smt.GetForRoot(key, smt.Root())
-	return value, err
-}
+	// Get tree's root
+	root := smt.Root()
 
-// GetForRoot gets a key from the tree at a specific root.
-func (smt *SparseMerkleTree) GetForRoot(key []byte, root []byte) ([]byte, error) {
 	if bytes.Equal(root, smt.th.placeholder()) {
 		// The tree is empty, return the default value.
 		return defaultValue, nil
 	}
 
 	path := smt.th.path(key)
-	currentHash := root
-	for i := 0; i < smt.depth(); i++ {
-		currentData, err := smt.nodes.Get(currentHash)
-		if err != nil {
-			return nil, err
-		} else if smt.th.isLeaf(currentData) {
-			// We've reached the end. Is this the actual leaf?
-			p, _ := smt.th.parseLeaf(currentData)
-			if !bytes.Equal(path, p) {
-				// Nope. Therefore the key is actually empty.
-				return defaultValue, nil
-			}
-			// Otherwise, yes. Return the value.
-			value, err := smt.values.Get(path)
-			if err != nil {
-				return nil, err
-			}
-			return value, nil
-		}
-
-		leftNode, rightNode := smt.th.parseNode(currentData)
-		if getBitAtFromMSB(path, i) == right {
-			currentHash = rightNode
-		} else {
-			currentHash = leftNode
-		}
-
-		if bytes.Equal(currentHash, smt.th.placeholder()) {
-			// We've hit a placeholder value; this is the end.
-			return defaultValue, nil
-		}
-	}
-
-	// The following lines of code should only be reached if the path is 256
-	// nodes high, which should be very unlikely if the underlying hash function
-	// is collision-resistant.
 	value, err := smt.values.Get(path)
+
 	if err != nil {
-		return nil, err
+		var invalidKeyError *InvalidKeyError
+
+		if errors.As(err, &invalidKeyError) {
+			// If key isn't found, return default value
+			return defaultValue, nil
+		} else {
+			// Otherwise percolate up any other error
+			return nil, err
+		}
 	}
 	return value, nil
 }
 
-// Has returns true if tree contains given key, false otherwise.
+// Has returns true if the value at the given key is non-default, false
+// otherwise.
 func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
 	val, err := smt.Get(key)
-	return !bytes.Equal(defaultValue, val), err
-}
-
-// HasForRoot returns true if tree contains given key at a specific root, false otherwise.
-func (smt *SparseMerkleTree) HasForRoot(key, root []byte) (bool, error) {
-	val, err := smt.GetForRoot(key, root)
 	return !bytes.Equal(defaultValue, val), err
 }
 
