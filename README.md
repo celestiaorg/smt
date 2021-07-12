@@ -19,10 +19,10 @@ import(
 
 func main() {
     // Initialise two new key-value store to store the nodes and values of the tree
-    nodestore := smt.NewSimpleMap()
-    valuestore := smt.NewSimpleMap()
+    nodeStore := smt.NewSimpleMap()
+    valueStore := smt.NewSimpleMap()
     // Initialise the tree
-    tree := smt.NewSparseMerkleTree(nodestore, valuestore, sha256.New())
+    tree := smt.NewSparseMerkleTree(nodeStore, valueStore, sha256.New())
 
     // Update the key "foo" with the value "bar"
     tree.Update([]byte("foo"), []byte("bar"))
