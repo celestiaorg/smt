@@ -1,3 +1,3 @@
-module github.com/lazyledger/smt
+module github.com/celestiaorg/smt
 
 go 1.14
