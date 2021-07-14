@@ -9,13 +9,13 @@ var leafPrefix = []byte{0}
 var nodePrefix = []byte{1}
 
 type treeHasher struct {
-	hasher hash.Hash
+	hasher    hash.Hash
+	zeroValue []byte
 }
 
 func newTreeHasher(hasher hash.Hash) *treeHasher {
-	th := treeHasher{
-		hasher: hasher,
-	}
+	th := treeHasher{hasher: hasher}
+	th.zeroValue = make([]byte, th.pathSize())
 
 	return &th
 }
@@ -32,9 +32,8 @@ func (th *treeHasher) path(key []byte) []byte {
 }
 
 func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {
-	value := make([]byte, len(leafPrefix))
-	copy(value, leafPrefix)
-
+	value := make([]byte, 0, len(leafPrefix)+len(path)+len(leafData))
+	value = append(value, leafPrefix...)
 	value = append(value, path...)
 	value = append(value, leafData...)
 
@@ -54,9 +53,8 @@ func (th *treeHasher) isLeaf(data []byte) bool {
 }
 
 func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []byte) {
-	value := make([]byte, len(nodePrefix))
-	copy(value, nodePrefix)
-
+	value := make([]byte, 0, len(nodePrefix)+len(leftData)+len(rightData))
+	value = append(value, nodePrefix...)
 	value = append(value, leftData...)
 	value = append(value, rightData...)
 
@@ -76,5 +74,5 @@ func (th *treeHasher) pathSize() int {
 }
 
 func (th *treeHasher) placeholder() []byte {
-	return bytes.Repeat([]byte{0}, th.pathSize())
+	return th.zeroValue
 }
