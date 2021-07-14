@@ -1,6 +1,6 @@
 # smt
 
-A Go library that implements a Sparse Merkle tree for a key-value map. The tree implements the same optimisations specified in the [Libra whitepaper](https://developers.libra.org/docs/assets/papers/the-libra-blockchain/2020-05-26.pdf), to reduce the number of hash operations required per tree operation to O(k) where k is the number of non-empty elements in the tree.
+A Go library that implements a Sparse Merkle tree for a key-value map. The tree implements the same optimisations specified in the [Libra whitepaper][libra whitepaper], to reduce the number of hash operations required per tree operation to O(k) where k is the number of non-empty elements in the tree.
 
 [![Tests](https://github.com/celestiaorg/smt/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/smt/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/lazyledger/smt/badge.svg?branch=master)](https://coveralls.io/github/lazyledger/smt?branch=master)
@@ -43,3 +43,5 @@ func main() {
 ## Future wishlist
 
 - **Tree sharding to process updates in parallel.** At the moment, the tree can only safely handle one update at a time. It would be desirable to shard the tree into multiple subtrees and allow parallel updates to the subtrees.
+
+[libra whitepaper]: https://diem-developers-components.netlify.app/papers/the-diem-blockchain/2020-05-26.pdf
