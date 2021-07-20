@@ -22,6 +22,11 @@ type SparseMerkleTree struct {
 	root          []byte
 }
 
+type LeafNode struct {
+	Path      []byte
+	ValueHash []byte
+}
+
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
 func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Option) *SparseMerkleTree {
 	smt := SparseMerkleTree{
@@ -89,6 +94,54 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 		}
 	}
 	return value, nil
+}
+
+// GetLeaf gets an entire leaf node from the tree.
+func (smt *SparseMerkleTree) GetLeaf(key []byte) (*LeafNode, error) {
+	if bytes.Equal(smt.root, smt.th.placeholder()) {
+		// The tree is empty, return the default value.
+		return nil, nil
+	}
+
+	path := smt.th.path(key)
+	currentHash := smt.root
+	for i := 0; i < smt.depth(); i++ {
+		currentData, err := smt.nodes.Get(currentHash)
+		if err != nil {
+			return nil, err
+		} else if smt.th.isLeaf(currentData) {
+			// We've reached the end. Is this the actual leaf?
+			p, valueHash := smt.th.parseLeaf(currentData)
+			if !bytes.Equal(path, p) {
+				// Nope. Therefore the key is actually empty.
+				return nil, nil
+			}
+			// Otherwise, yes. Return the value.
+			return &LeafNode{Path: p, ValueHash: valueHash}, nil
+		}
+
+		leftNode, rightNode := smt.th.parseNode(currentData)
+		if getBitAtFromMSB(path, i) == right {
+			currentHash = rightNode
+		} else {
+			currentHash = leftNode
+		}
+
+		if bytes.Equal(currentHash, smt.th.placeholder()) {
+			// We've hit a placeholder value; this is the end.
+			return nil, nil
+		}
+	}
+
+	// The following lines of code should only be reached if the path is 256
+	// nodes high, which should be very unlikely if the underlying hash function
+	// is collision-resistant.
+	currentData, err := smt.nodes.Get(currentHash)
+	if err != nil {
+		return nil, err
+	}
+	_, valueHash := smt.th.parseLeaf(currentData)
+	return &LeafNode{Path: path, ValueHash: valueHash}, nil
 }
 
 // Has returns true if the value at the given key is non-default, false

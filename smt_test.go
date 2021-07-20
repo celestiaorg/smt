@@ -220,6 +220,22 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 	}
 }
 
+// Make two neighboring keys.
+func neighboringKeys(size int) ([]byte, []byte) {
+	// The dummy hash function expects keys to be prefixed with four bytes of 0,
+	// which will cause it to return the preimage itself as the digest, without
+	// the first four bytes.
+	key1 := make([]byte, size+4)
+	rand.Read(key1)
+	key1[0], key1[1], key1[2], key1[3] = byte(0), byte(0), byte(0), byte(0)
+	key1[size+4-1] = byte(0)
+	key2 := make([]byte, size+4)
+	copy(key2, key1)
+	// We make key2's least significant bit different than key1's
+	key2[size+4-1] = byte(1)
+	return key1, key2
+}
+
 // Test tree operations when two leafs are immediate neighbors.
 func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	h := newDummyHasher(sha256.New())
@@ -228,19 +244,7 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	var value []byte
 	var err error
 
-	// Make two neighboring keys.
-	//
-	// The dummy hash function expects keys to prefixed with four bytes of 0,
-	// which will cause it to return the preimage itself as the digest, without
-	// the first four bytes.
-	key1 := make([]byte, h.Size()+4)
-	rand.Read(key1)
-	key1[0], key1[1], key1[2], key1[3] = byte(0), byte(0), byte(0), byte(0)
-	key1[h.Size()+4-1] = byte(0)
-	key2 := make([]byte, h.Size()+4)
-	copy(key2, key1)
-	// We make key2's least significant bit different than key1's
-	key2[h.Size()+4-1] = byte(1)
+	key1, key2 := neighboringKeys(h.Size())
 
 	_, err = smt.Update(key1, []byte("testValue1"))
 	if err != nil {
@@ -611,6 +615,78 @@ func TestOrphanRemoval(t *testing.T) {
 		_, err = smt.Delete([]byte("testKey2"))
 		if err != nil {
 			t.Errorf("returned error when updating non-empty key: %v", err)
+		}
+	})
+}
+
+func TestGetLeaf(t *testing.T) {
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	var leaf *LeafNode
+	var err error
+
+	t.Run("basic", func(t *testing.T) {
+		leaf, err = smt.GetLeaf([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when getting empty key: %v", err)
+		}
+		if leaf != nil {
+			t.Error("did not get nil when getting empty key")
+		}
+
+		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+		if err != nil {
+			t.Errorf("returned error when updating empty key: %v", err)
+		}
+		leaf, err = smt.GetLeaf([]byte("testKey"))
+		if err != nil {
+			t.Errorf("returned error when getting non-empty key: %v", err)
+		}
+		if !bytes.Equal(leaf.Path, smt.th.path([]byte("testKey"))) {
+			t.Error("did not get correct path when getting non-empty key")
+		}
+		if !bytes.Equal(leaf.ValueHash, smt.th.digest([]byte("testValue"))) {
+			t.Error("did not get correct value hash when getting non-empty key")
+		}
+	})
+
+	h := newDummyHasher(sha256.New())
+	smn, smv = NewSimpleMap(), NewSimpleMap()
+	smt = NewSparseMerkleTree(smn, smv, h)
+
+	// Max height case
+	t.Run("max height case", func(t *testing.T) {
+		key1, key2 := neighboringKeys(h.Size())
+
+		_, err = smt.Update(key1, []byte("testValue1"))
+		if err != nil {
+			t.Errorf("returned error when updating empty key: %v", err)
+		}
+		_, err = smt.Update(key2, []byte("testValue2"))
+		if err != nil {
+			t.Errorf("returned error when updating empty key: %v", err)
+		}
+
+		leaf, err = smt.GetLeaf([]byte(key1))
+		if err != nil {
+			t.Errorf("returned error when getting non-empty key: %v", err)
+		}
+		if !bytes.Equal(leaf.Path, smt.th.path([]byte(key1))) {
+			t.Error("did not get correct path when getting non-empty key")
+		}
+		if !bytes.Equal(leaf.ValueHash, smt.th.digest([]byte("testValue1"))) {
+			t.Error("did not get correct value hash when getting non-empty key")
+		}
+
+		leaf, err = smt.GetLeaf([]byte(key2))
+		if err != nil {
+			t.Errorf("returned error when getting non-empty key: %v", err)
+		}
+		if !bytes.Equal(leaf.Path, smt.th.path([]byte(key2))) {
+			t.Error("did not get correct path when getting non-empty key")
+		}
+		if !bytes.Equal(leaf.ValueHash, smt.th.digest([]byte("testValue2"))) {
+			t.Error("did not get correct value hash when getting non-empty key")
 		}
 	})
 }
