@@ -122,5 +122,8 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 // Errors if the key cannot be reached by descending.
 func (smt *SparseMerkleTree) HasDescend(key []byte) (bool, error) {
 	val, err := smt.GetDescend(key)
-	return !bytes.Equal(defaultValue, val), err
+	if err != nil {
+		return false, err
+	}
+	return !bytes.Equal(defaultValue, val), nil
 }
