@@ -1,0 +1,27 @@
+name: Build Fuzz
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.15"
+      - uses: actions/checkout@v2
+      - uses: technote-space/get-diff-action@v4
+        with:
+          PATTERNS: |
+            **/**.go
+            go.mod
+            go.sum
+      - name: install deps
+        run: go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
+      - name: build fuzz
+        run: go-fuzz-build
+        working-directory: fuzz
