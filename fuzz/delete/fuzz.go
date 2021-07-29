@@ -26,7 +26,6 @@ func Fuzz(data []byte) int {
 
 	deleteKey := splits[len(splits)-1]
 	newRoot, err := tree.Delete(deleteKey)
-
 	if err != nil {
 		return 0
 	}
