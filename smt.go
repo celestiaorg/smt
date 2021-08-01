@@ -22,6 +22,8 @@ type SparseMerkleTree struct {
 	root          []byte
 }
 
+// LeafNode represents the contents of a tree leaf.
+// A LeafNode with ValueHash == nil represents an absent record.
 type LeafNode struct {
 	Path      []byte
 	ValueHash []byte
@@ -97,13 +99,14 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 }
 
 // GetLeaf gets an entire leaf node from the tree.
+// If the leaf is not found, a LeafNode is returned with ValueHash == nil
 func (smt *SparseMerkleTree) GetLeaf(key []byte) (*LeafNode, error) {
+	path := smt.th.path(key)
 	if bytes.Equal(smt.root, smt.th.placeholder()) {
 		// The tree is empty, return the default value.
-		return nil, nil
+		return &LeafNode{Path: path, ValueHash: nil}, nil
 	}
 
-	path := smt.th.path(key)
 	currentHash := smt.root
 	for i := 0; i < smt.depth(); i++ {
 		currentData, err := smt.nodes.Get(currentHash)
@@ -114,7 +117,7 @@ func (smt *SparseMerkleTree) GetLeaf(key []byte) (*LeafNode, error) {
 			p, valueHash := smt.th.parseLeaf(currentData)
 			if !bytes.Equal(path, p) {
 				// Nope. Therefore the key is actually empty.
-				return nil, nil
+				return &LeafNode{Path: p, ValueHash: nil}, nil
 			}
 			// Otherwise, yes. Return the value.
 			return &LeafNode{Path: p, ValueHash: valueHash}, nil

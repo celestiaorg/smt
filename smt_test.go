@@ -630,8 +630,11 @@ func TestGetLeaf(t *testing.T) {
 		if err != nil {
 			t.Errorf("returned error when getting empty key: %v", err)
 		}
-		if leaf != nil {
-			t.Error("did not get nil when getting empty key")
+		if leaf.ValueHash != nil {
+			t.Error("did not get nil ValueHash when getting empty key")
+		}
+		if leaf.Path == nil {
+			t.Error("got nil Path when getting empty key")
 		}
 
 		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
