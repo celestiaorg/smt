@@ -24,6 +24,9 @@ func Fuzz(input []byte) int {
 			keys = append(keys, k)
 			return k
 		}
+		if len(keys) == 0 {
+			return nil
+		}
 		return keys[int(readByte(r))%len(keys)]
 	}
 	for i := 0; r.Len() != 0; i++ {
