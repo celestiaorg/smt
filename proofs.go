@@ -42,16 +42,12 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 	}
 
 	// Check that the sibling data hashes to the first side node if not nil
-	if proof.SiblingData != nil {
-		siblingHash := th.digest(proof.SiblingData)
-		if proof.SideNodes != nil && len(proof.SideNodes) > 0 {
-			if !bytes.Equal(proof.SideNodes[0], siblingHash) {
-				return false
-			}
-		}
+	if proof.SiblingData == nil || len(proof.SideNodes) == 0 {
+		return true
 	}
 
-	return true
+	siblingHash := th.digest(proof.SiblingData)
+	return bytes.Equal(proof.SideNodes[0], siblingHash)
 }
 
 // SparseCompactMerkleProof is a compact Merkle proof for an element in a SparseMerkleTree.
