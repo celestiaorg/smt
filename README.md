@@ -11,32 +11,33 @@ A Go library that implements a Sparse Merkle tree for a key-value map. The tree 
 ```go
 package main
 
-import(
-    "fmt"
-    "crypto/sha256"
-    "github.com/celestiaorg/smt"
+import (
+	"crypto/sha256"
+	"fmt"
+
+	"github.com/celestiaorg/smt"
 )
 
 func main() {
-    // Initialise two new key-value store to store the nodes and values of the tree
-    nodeStore := smt.NewSimpleMap()
-    valueStore := smt.NewSimpleMap()
-    // Initialise the tree
-    tree := smt.NewSparseMerkleTree(nodeStore, valueStore, sha256.New())
+	// Initialise two new key-value store to store the nodes and values of the tree
+	nodeStore := smt.NewSimpleMap()
+	valueStore := smt.NewSimpleMap()
+	// Initialise the tree
+	tree := smt.NewSparseMerkleTree(nodeStore, valueStore, sha256.New())
 
-    // Update the key "foo" with the value "bar"
-    tree.Update([]byte("foo"), []byte("bar"))
+	// Update the key "foo" with the value "bar"
+	_, _ = tree.Update([]byte("foo"), []byte("bar"))
 
-    // Generate a Merkle proof for foo=bar
-    proof, _ := tree.Prove([]byte("foo"))
-    root := tree.Root() // We also need the current tree root for the proof
+	// Generate a Merkle proof for foo=bar
+	proof, _ := tree.Prove([]byte("foo"))
+	root := tree.Root() // We also need the current tree root for the proof
 
-    // Verify the Merkle proof for foo=bar
-    if smt.VerifyProof(proof, root, []byte("foo"), []byte("bar"), sha256.New()) {
-        fmt.Println("Proof verification succeeded.")
-    } else {
-        fmt.Println("Proof verification failed.")
-    }
+	// Verify the Merkle proof for foo=bar
+	if smt.VerifyProof(proof, root, []byte("foo"), []byte("bar"), sha256.New()) {
+		fmt.Println("Proof verification succeeded.")
+	} else {
+		fmt.Println("Proof verification failed.")
+	}
 }
 ```
 

@@ -11,7 +11,7 @@ func getBitAtFromMSB(data []byte, position int) int {
 // setBitAtFromMSB sets the bit at an offset from the most significant bit
 func setBitAtFromMSB(data []byte, position int) {
 	n := int(data[position/8])
-	n |= (1 << (8 - 1 - uint(position)%8))
+	n |= 1 << (8 - 1 - uint(position)%8)
 	data[position/8] = byte(n)
 }
 
