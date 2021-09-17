@@ -346,8 +346,12 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 			sideNode = rightNode
 			nodeHash = leftNode
 		}
-		sideNodes = append(sideNodes, sideNode)
-		pathNodes = append(pathNodes, nodeHash)
+		sideNodes = append(sideNodes, nil)
+		copy(sideNodes[1:], sideNodes)
+		sideNodes[0] = sideNode
+		pathNodes = append(pathNodes, nil)
+		copy(pathNodes[1:], pathNodes)
+		pathNodes[0] = nodeHash
 
 		if bytes.Equal(nodeHash, smt.th.placeholder()) {
 			// If the node is a placeholder, we've reached the end.
@@ -370,7 +374,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 			return nil, nil, nil, nil, err
 		}
 	}
-	return reverseByteSlices(sideNodes), reverseByteSlices(pathNodes), currentData, siblingData, nil
+	return sideNodes, pathNodes, currentData, siblingData, nil
 }
 
 // Prove generates a Merkle proof for a key against the current root.
