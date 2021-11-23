@@ -37,9 +37,7 @@ func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) 
 	value = append(value, path...)
 	value = append(value, leafData...)
 
-	th.hasher.Write(value)
-	sum := th.hasher.Sum(nil)
-	th.hasher.Reset()
+	sum := th.digest(value)
 
 	return sum, value
 }
