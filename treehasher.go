@@ -56,9 +56,7 @@ func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []b
 	value = append(value, leftData...)
 	value = append(value, rightData...)
 
-	th.hasher.Write(value)
-	sum := th.hasher.Sum(nil)
-	th.hasher.Reset()
+	sum := th.digest(value)
 
 	return sum, value
 }
