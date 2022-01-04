@@ -9,18 +9,21 @@ import (
 	"github.com/celestiaorg/smt"
 )
 
+// Fuzz FIXME
 func Fuzz(input []byte) int {
 	if len(input) < 100 {
 		return 0
 	}
-	smn, smv := smt.NewSimpleMap(), smt.NewSimpleMap()
-	tree := smt.NewSparseMerkleTree(smn, smv, sha256.New())
+	hasher := sha256.New()
+	keySize := 10
+	smn, smv := smt.NewSimpleMap(hasher.Size()), smt.NewSimpleMap(keySize)
+	tree := smt.NewSparseMerkleTree(smn, smv, hasher)
 	r := bytes.NewReader(input)
 	var keys [][]byte
 	key := func() []byte {
 		if readByte(r) < math.MaxUint8/2 {
 			k := make([]byte, readByte(r)/2)
-			r.Read(k)
+			_, _ = r.Read(k)
 			keys = append(keys, k)
 			return k
 		}
@@ -37,17 +40,17 @@ func Fuzz(input []byte) int {
 		op := op(int(b) % int(Noop))
 		switch op {
 		case Get:
-			tree.Get(key())
+			_, _ = tree.Get(key())
 		case Update:
 			value := make([]byte, 32)
 			binary.BigEndian.PutUint64(value, uint64(i))
-			tree.Update(key(), value)
+			_, _ = tree.Update(key(), value)
 		case Delete:
-			tree.Delete(key())
+			_, _ = tree.Delete(key())
 		case Prove:
-			tree.Prove(key())
+			_, _ = tree.Prove(key())
 		case Has:
-			tree.Has(key())
+			_, _ = tree.Has(key())
 		}
 	}
 	return 1
