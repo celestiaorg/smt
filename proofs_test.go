@@ -19,6 +19,11 @@ func TestProofsKeySizeChecks(t *testing.T) {
 		t.Errorf("couldn't update smt. exception: %v", err)
 	}
 
+	_, err = smt.Update([]byte("testKey2"), []byte("testValue2"))
+	if err != nil {
+		t.Errorf("couldn't update smt. exception: %v", err)
+	}
+
 	proof, err := smt.Prove([]byte("testKey1"))
 	if err != nil {
 		t.Errorf("couldn't prove existing key. Actual exception: %v", err)
