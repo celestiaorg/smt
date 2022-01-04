@@ -23,7 +23,7 @@ func (e *InvalidKeyError) Error() string {
 }
 
 // ErrWrongKeySize is returned when a key has a different size than the key size.
-var ErrWrongKeySize = errors.New("wrong key size") // make it a struct
+var ErrWrongKeySize = errors.New("wrong key size")
 
 // SimpleMap is a simple in-memory map.
 type SimpleMap struct {

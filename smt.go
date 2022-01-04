@@ -41,13 +41,12 @@ func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Op
 
 // ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
 func ImportSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
-	smt := SparseMerkleTree{
+	return &SparseMerkleTree{
 		th:     *newTreeHasher(hasher),
 		nodes:  nodes,
 		values: values,
 		root:   root,
 	}
-	return &smt
 }
 
 // Root gets the root of the tree.
@@ -82,10 +81,9 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 		if errors.As(err, &invalidKeyError) {
 			// If key isn't found, return default value
 			return defaultValue, nil
-		} else {
-			// Otherwise percolate up any other error
-			return nil, err
 		}
+		// Otherwise, percolate up any other error
+		return nil, err
 	}
 	return value, nil
 }
@@ -130,7 +128,6 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 		if err := smt.values.Delete(key); err != nil {
 			return nil, err
 		}
-
 	} else {
 		// Insert or update operation.
 		newRoot, err = smt.updateWithSideNodes(key, value, sideNodes, pathNodes, oldLeafData)
@@ -380,8 +377,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 // the leaf may be updated (e.g. in a state transition fraud proof). For
 // updatable proofs, see ProveUpdatable.
 func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
-	proof, err := smt.ProveForRoot(key, smt.Root())
-	return proof, err
+	return smt.ProveForRoot(key, smt.Root())
 }
 
 // ProveForRoot generates a Merkle proof for a key, against a specific node.
@@ -396,8 +392,7 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkle
 
 // ProveUpdatable generates an updatable Merkle proof for a key against the current root.
 func (smt *SparseMerkleTree) ProveUpdatable(key []byte) (SparseMerkleProof, error) {
-	proof, err := smt.ProveUpdatableForRoot(key, smt.Root())
-	return proof, err
+	return smt.ProveUpdatableForRoot(key, smt.Root())
 }
 
 // ProveUpdatableForRoot generates an updatable Merkle proof for a key, against a specific node.
@@ -431,19 +426,16 @@ func (smt *SparseMerkleTree) doProveForRoot(key []byte, root []byte, isUpdatable
 		}
 	}
 
-	proof := SparseMerkleProof{
+	return SparseMerkleProof{
 		SideNodes:             nonEmptySideNodes,
 		NonMembershipLeafData: nonMembershipLeafData,
 		SiblingData:           siblingData,
-	}
-
-	return proof, err
+	}, err
 }
 
 // ProveCompact generates a compacted Merkle proof for a key against the current root.
 func (smt *SparseMerkleTree) ProveCompact(key []byte) (SparseCompactMerkleProof, error) {
-	proof, err := smt.ProveCompactForRoot(key, smt.Root())
-	return proof, err
+	return smt.ProveCompactForRoot(key, smt.Root())
 }
 
 // ProveCompactForRoot generates a compacted Merkle proof for a key, at a specific root.
