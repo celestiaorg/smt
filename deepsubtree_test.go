@@ -28,12 +28,12 @@ func TestDeepSubTreeKeySizeChecks(t *testing.T) {
 	smv, _ = NewSimpleMap(keySize)
 	dsmst := NewDeepSparseMerkleSubTree(smn, smv, hasher, smt.Root())
 
-	err = dsmst.AddBranch(proof, randomBytes(keySize+1), []byte("testValue1"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof, randomBytes(keySize+1), []byte("testValue1"))
 	if err != ErrWrongKeySize {
 		t.Errorf("should have complained of `keySize + 1` when adding branch. Actual exception: %v", err)
 	}
 
-	err = dsmst.AddBranch(proof, randomBytes(keySize-1), []byte("testValue1"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof, randomBytes(keySize-1), []byte("testValue1"))
 	if err != ErrWrongKeySize {
 		t.Errorf("should have complained of `keySize - 1` when adding branch. Actual exception: %v", err)
 	}
@@ -71,15 +71,15 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	smn, _ = NewSimpleMap(hasher.Size())
 	smv, _ = NewSimpleMap(len([]byte("testKey1")))
 	dsmst := NewDeepSparseMerkleSubTree(smn, smv, hasher, smt.Root())
-	err := dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"), smt.values.GetKeySize())
+	err := dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
-	err = dsmst.AddBranch(proof2, []byte("testKey2"), []byte("testValue2"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof2, []byte("testKey2"), []byte("testValue2"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
-	err = dsmst.AddBranch(proof5, []byte("testKey5"), defaultValue, smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof5, []byte("testKey5"), defaultValue)
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestDeepSparseMerkleSubTreeBadInput(t *testing.T) {
 	smn, _ = NewSimpleMap(hasher.Size())
 	smv, _ = NewSimpleMap(len([]byte("testKey1")))
 	dsmst := NewDeepSparseMerkleSubTree(smn, smv, hasher, smt.Root())
-	err := dsmst.AddBranch(badProof, []byte("testKey1"), []byte("testValue1"), smt.values.GetKeySize())
+	err := dsmst.AddBranch(badProof, []byte("testKey1"), []byte("testValue1"))
 	if !errors.Is(err, ErrBadProof) {
 		t.Error("did not return ErrBadProof for bad proof input")
 	}

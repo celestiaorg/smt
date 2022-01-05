@@ -27,11 +27,11 @@ func NewDeepSparseMerkleSubTree(nodes, values MapStore, hasher hash.Hash, root [
 //
 // If the leaf may be updated (e.g. during a state transition fraud proof),
 // an updatable proof should be used. See SparseMerkleTree.ProveUpdatable.
-func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []byte, value []byte, keySize int) error {
-	if len(key) != keySize {
+func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []byte, value []byte) error {
+	if len(key) != dsmst.values.GetKeySize() {
 		return ErrWrongKeySize
 	}
-	result, updates := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher, keySize)
+	result, updates := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher, dsmst.values.GetKeySize())
 	if !result {
 		return ErrBadProof
 	}

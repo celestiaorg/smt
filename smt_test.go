@@ -357,23 +357,23 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 	smn, _ = NewSimpleMap(h.Size())
 	smv, _ = NewSimpleMap(keySize)
 	dsmst := NewDeepSparseMerkleSubTree(smn, smv, h, smt.Root())
-	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
-	err = dsmst.AddBranch(proof2, key2, []byte("testValue2"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof2, key2, []byte("testValue2"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
-	err = dsmst.AddBranch(proof3, key3, []byte("testValue3"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof3, key3, []byte("testValue3"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
-	err = dsmst.AddBranch(proof4, key4, []byte("testValue4"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof4, key4, []byte("testValue4"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
-	err = dsmst.AddBranch(proof5, key5, []byte("testValue5"), smt.values.GetKeySize())
+	err = dsmst.AddBranch(proof5, key5, []byte("testValue5"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
 	}
