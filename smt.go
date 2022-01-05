@@ -41,12 +41,13 @@ func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Op
 
 // ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
 func ImportSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
-	return &SparseMerkleTree{
+	smt := SparseMerkleTree{
 		th:     *newTreeHasher(hasher),
 		nodes:  nodes,
 		values: values,
 		root:   root,
 	}
+	return &smt
 }
 
 // Root gets the root of the tree.
@@ -377,7 +378,8 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 // the leaf may be updated (e.g. in a state transition fraud proof). For
 // updatable proofs, see ProveUpdatable.
 func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
-	return smt.ProveForRoot(key, smt.Root())
+	proof, err := smt.ProveForRoot(key, smt.Root())
+	return proof, err
 }
 
 // ProveForRoot generates a Merkle proof for a key, against a specific node.
@@ -392,7 +394,8 @@ func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkle
 
 // ProveUpdatable generates an updatable Merkle proof for a key against the current root.
 func (smt *SparseMerkleTree) ProveUpdatable(key []byte) (SparseMerkleProof, error) {
-	return smt.ProveUpdatableForRoot(key, smt.Root())
+	proof, err := smt.ProveUpdatableForRoot(key, smt.Root())
+	return proof, err
 }
 
 // ProveUpdatableForRoot generates an updatable Merkle proof for a key, against a specific node.
@@ -426,16 +429,19 @@ func (smt *SparseMerkleTree) doProveForRoot(key []byte, root []byte, isUpdatable
 		}
 	}
 
-	return SparseMerkleProof{
+	proof := SparseMerkleProof{
 		SideNodes:             nonEmptySideNodes,
 		NonMembershipLeafData: nonMembershipLeafData,
 		SiblingData:           siblingData,
-	}, err
+	}
+
+	return proof, err
 }
 
 // ProveCompact generates a compacted Merkle proof for a key against the current root.
 func (smt *SparseMerkleTree) ProveCompact(key []byte) (SparseCompactMerkleProof, error) {
-	return smt.ProveCompactForRoot(key, smt.Root())
+	proof, err := smt.ProveCompactForRoot(key, smt.Root())
+	return proof, err
 }
 
 // ProveCompactForRoot generates a compacted Merkle proof for a key, at a specific root.
