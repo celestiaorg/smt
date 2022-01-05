@@ -24,7 +24,8 @@ func TestSparseMerkleTree(t *testing.T) {
 func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
 	hasher := sha256.New()
 	keyLen := 16 + rand.Intn(32)
-	smn, smv := NewSimpleMap(hasher.Size()), NewSimpleMap(keyLen)
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(keyLen)
 	smt := NewSparseMerkleTree(smn, smv, hasher)
 
 	max := insert + update + delete

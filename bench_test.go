@@ -9,7 +9,8 @@ import (
 
 func BenchmarkSparseMerkleTree_Update(b *testing.B) {
 	hasher := sha256.New()
-	smn, smv := NewSimpleMap(hasher.Size()), NewSimpleMap(9)
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(9)
 	smt := NewSparseMerkleTree(smn, smv, hasher)
 
 	b.ResetTimer()
@@ -25,7 +26,8 @@ func BenchmarkSparseMerkleTree_Update(b *testing.B) {
 
 func BenchmarkSparseMerkleTree_Delete(b *testing.B) {
 	hasher := sha256.New()
-	smn, smv := NewSimpleMap(hasher.Size()), NewSimpleMap(9)
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(9)
 	smt := NewSparseMerkleTree(smn, smv, hasher)
 
 	for i := 0; i < 100000; i++ {

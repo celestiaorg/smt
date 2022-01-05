@@ -16,7 +16,8 @@ func Fuzz(input []byte) int {
 	}
 	hasher := sha256.New()
 	keySize := 10
-	smn, smv := smt.NewSimpleMap(hasher.Size()), smt.NewSimpleMap(keySize)
+	smn, _ := smt.NewSimpleMap(hasher.Size())
+	smv, _ := smt.NewSimpleMap(keySize)
 	tree := smt.NewSparseMerkleTree(smn, smv, hasher)
 	r := bytes.NewReader(input)
 	var keys [][]byte

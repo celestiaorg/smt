@@ -25,6 +25,9 @@ func (e *InvalidKeyError) Error() string {
 // ErrWrongKeySize is returned when a key has a different size than the key size.
 var ErrWrongKeySize = errors.New("wrong key size")
 
+// ErrUnsupportedKeySize is returned when the map store is initialized by a key smaller than 1.
+var ErrUnsupportedKeySize = errors.New("key size should be greater or equal to 1")
+
 // SimpleMap is a simple in-memory map.
 type SimpleMap struct {
 	m       map[string][]byte
@@ -32,11 +35,14 @@ type SimpleMap struct {
 }
 
 // NewSimpleMap creates a new empty SimpleMap.
-func NewSimpleMap(keySize int) *SimpleMap {
+func NewSimpleMap(keySize int) (*SimpleMap, error) {
+	if keySize < 1 {
+		return nil, ErrUnsupportedKeySize
+	}
 	return &SimpleMap{
 		m:       make(map[string][]byte),
 		keySize: keySize,
-	}
+	}, nil
 }
 
 // Get gets the value for a key.

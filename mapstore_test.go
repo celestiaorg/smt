@@ -6,7 +6,7 @@ import (
 )
 
 func TestSimpleMap(t *testing.T) {
-	sm := NewSimpleMap(len([]byte("test1")))
+	sm, _ := NewSimpleMap(len([]byte("test1")))
 
 	// Tests for Get.
 	_, err := sm.Get([]byte("test1"))
@@ -43,10 +43,23 @@ func TestSimpleMap(t *testing.T) {
 }
 
 func TestSimpleMapKeySize(t *testing.T) {
-	sm := NewSimpleMap(len([]byte("test1")))
+	_, err := NewSimpleMap(0)
+	if err != ErrUnsupportedKeySize {
+		t.Errorf("didn't throw ErrUnsupportedKeySize when initializing with 0 as key size : %v", err)
+	}
+
+	_, err = NewSimpleMap(1)
+	if err != nil {
+		t.Errorf("shouldn't throw an exception when initializing with 1 as key size : %v", err)
+	}
+
+	sm, err := NewSimpleMap(len([]byte("test1")))
+	if err != nil {
+		t.Errorf("shouldn't throw an exception when initializing with 5 as key size : %v", err)
+	}
 
 	// Tests for setting wrong key size.
-	err := sm.Set([]byte("test11"), []byte("hello"))
+	err = sm.Set([]byte("test11"), []byte("hello"))
 	if err != ErrWrongKeySize {
 		t.Errorf("didn't throw ErrWrongKeySize when setting a bigger key size : %v", err)
 	}

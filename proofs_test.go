@@ -11,7 +11,8 @@ import (
 func TestProofsKeySizeChecks(t *testing.T) {
 	hasher := sha256.New()
 	keySize := len([]byte("testKey1"))
-	smn, smv := NewSimpleMap(hasher.Size()), NewSimpleMap(keySize)
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(keySize)
 	smt := NewSparseMerkleTree(smn, smv, hasher)
 
 	_, err := smt.Update([]byte("testKey1"), []byte("testValue1"))
@@ -75,7 +76,8 @@ func TestProofsBasic(t *testing.T) {
 	var err error
 
 	hasher := sha256.New()
-	smn, smv = NewSimpleMap(hasher.Size()), NewSimpleMap(len([]byte("testKey1")))
+	smn, _ = NewSimpleMap(hasher.Size())
+	smv, _ = NewSimpleMap(len([]byte("testKey1")))
 	smt = NewSparseMerkleTree(smn, smv, hasher)
 
 	// Generate and verify a proof on an empty key.
@@ -182,7 +184,8 @@ func TestProofsBasic(t *testing.T) {
 // Test sanity check cases for non-compact proofs.
 func TestProofsSanityCheck(t *testing.T) {
 	hasher := sha256.New()
-	smn, smv := NewSimpleMap(hasher.Size()), NewSimpleMap(len([]byte("testKey1")))
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(len([]byte("testKey1")))
 	smt := NewSparseMerkleTree(smn, smv, hasher)
 	th := &smt.th
 
@@ -259,7 +262,8 @@ func TestProofsSanityCheck(t *testing.T) {
 // Test sanity check cases for compact proofs.
 func TestCompactProofsSanityCheck(t *testing.T) {
 	hasher := sha256.New()
-	smn, smv := NewSimpleMap(hasher.Size()), NewSimpleMap(len([]byte("testKey1")))
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(len([]byte("testKey1")))
 	smt := NewSparseMerkleTree(smn, smv, hasher)
 	th := &smt.th
 
