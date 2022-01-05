@@ -28,13 +28,16 @@ func NewDeepSparseMerkleSubTree(nodes, values MapStore, hasher hash.Hash, root [
 // If the leaf may be updated (e.g. during a state transition fraud proof),
 // an updatable proof should be used. See SparseMerkleTree.ProveUpdatable.
 func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []byte, value []byte) error {
-	result, updates := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher)
+	if len(key) != dsmst.values.GetKeySize() {
+		return ErrWrongKeySize
+	}
+	result, updates := verifyProofWithUpdates(proof, dsmst.Root(), key, value, dsmst.th.hasher, dsmst.values.GetKeySize())
 	if !result {
 		return ErrBadProof
 	}
 
 	if !bytes.Equal(value, defaultValue) { // Membership proof.
-		if err := dsmst.values.Set(dsmst.th.path(key), value); err != nil {
+		if err := dsmst.values.Set(key, value); err != nil {
 			return err
 		}
 	}
@@ -64,6 +67,9 @@ func (dsmst *DeepSparseMerkleSubTree) AddBranch(proof SparseMerkleProof, key []b
 // Use if a key was _not_ previously added with AddBranch, otherwise use Get.
 // Errors if the key cannot be reached by descending.
 func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
+	if len(key) != smt.values.GetKeySize() {
+		return nil, ErrWrongKeySize
+	}
 	// Get tree's root
 	root := smt.Root()
 
@@ -72,7 +78,6 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 		return defaultValue, nil
 	}
 
-	path := smt.th.path(key)
 	currentHash := root
 	for i := 0; i < smt.depth(); i++ {
 		currentData, err := smt.nodes.Get(currentHash)
@@ -80,13 +85,13 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 			return nil, err
 		} else if smt.th.isLeaf(currentData) {
 			// We've reached the end. Is this the actual leaf?
-			p, _ := smt.th.parseLeaf(currentData)
-			if !bytes.Equal(path, p) {
+			p, _ := smt.th.parseLeaf(currentData, smt.values.GetKeySize())
+			if !bytes.Equal(key, p) {
 				// Nope. Therefore the key is actually empty.
 				return defaultValue, nil
 			}
 			// Otherwise, yes. Return the value.
-			value, err := smt.values.Get(path)
+			value, err := smt.values.Get(key)
 			if err != nil {
 				return nil, err
 			}
@@ -94,7 +99,7 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 		}
 
 		leftNode, rightNode := smt.th.parseNode(currentData)
-		if getBitAtFromMSB(path, i) == right {
+		if getBitAtFromMSB(key, i) == right {
 			currentHash = rightNode
 		} else {
 			currentHash = leftNode
@@ -109,7 +114,7 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 	// The following lines of code should only be reached if the path is 256
 	// nodes high, which should be very unlikely if the underlying hash function
 	// is collision-resistant.
-	value, err := smt.values.Get(path)
+	value, err := smt.values.Get(key)
 	if err != nil {
 		return nil, err
 	}

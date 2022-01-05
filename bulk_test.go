@@ -22,8 +22,11 @@ func TestSparseMerkleTree(t *testing.T) {
 
 // Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
 func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
-	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	hasher := sha256.New()
+	keyLen := 16 + rand.Intn(32)
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(keyLen)
+	smt := NewSparseMerkleTree(smn, smv, hasher)
 
 	max := insert + update + delete
 	kv := make(map[string]string)
@@ -31,7 +34,6 @@ func bulkOperations(t *testing.T, operations int, insert int, update int, delete
 	for i := 0; i < operations; i++ {
 		n := rand.Intn(max)
 		if n < insert { // Insert
-			keyLen := 16 + rand.Intn(32)
 			key := make([]byte, keyLen)
 			rand.Read(key)
 
@@ -93,14 +95,14 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
+		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.th.hasher, smt.values.GetKeySize()) {
 			t.Error("Merkle proof failed to verify")
 		}
 		compactProof, err := smt.ProveCompact([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
+		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.th.hasher, smt.values.GetKeySize()) {
 			t.Error("Merkle proof failed to verify")
 		}
 
@@ -114,12 +116,12 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 			if v2 == "" {
 				continue
 			}
-			commonPrefix := countCommonPrefix(smt.th.path([]byte(k)), smt.th.path([]byte(k2)))
+			commonPrefix := countCommonPrefix([]byte(k), []byte(k2))
 			if commonPrefix != smt.depth() && commonPrefix > largestCommonPrefix {
 				largestCommonPrefix = commonPrefix
 			}
 		}
-		sideNodes, _, _, _, err := smt.sideNodesForRoot(smt.th.path([]byte(k)), smt.Root(), false)
+		sideNodes, _, _, _, err := smt.sideNodesForRoot([]byte(k), smt.Root(), false)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}

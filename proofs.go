@@ -21,16 +21,16 @@ type SparseMerkleProof struct {
 	SiblingData []byte
 }
 
-func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
+func (proof *SparseMerkleProof) sanityCheck(th *treeHasher, keySize int) bool {
 	// Do a basic sanity check on the proof, so that a malicious proof cannot
 	// cause the verifier to fatally exit (e.g. due to an index out-of-range
 	// error) or cause a CPU DoS attack.
 
 	// Check that the number of supplied sidenodes does not exceed the maximum possible.
-	if len(proof.SideNodes) > th.pathSize()*8 ||
+	if len(proof.SideNodes) > keySize*8 ||
 
 		// Check that leaf data for non-membership proofs is the correct size.
-		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) {
+		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+keySize+th.hasher.Size()) {
 		return false
 	}
 
@@ -74,7 +74,7 @@ type SparseCompactMerkleProof struct {
 	SiblingData []byte
 }
 
-func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
+func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher, keySize int) bool {
 	// Do a basic sanity check on the proof on the fields of the proof specific to
 	// the compact proof only.
 	//
@@ -82,7 +82,7 @@ func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
 	// de-compacted proof should be executed.
 
 	// Compact proofs: check that NumSideNodes is within the right range.
-	if proof.NumSideNodes < 0 || proof.NumSideNodes > th.pathSize()*8 ||
+	if proof.NumSideNodes < 0 || proof.NumSideNodes > keySize*8 ||
 
 		// Compact proofs: check that the length of the bit mask is as expected
 		// according to NumSideNodes.
@@ -98,16 +98,18 @@ func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
 }
 
 // VerifyProof verifies a Merkle proof.
-func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-	result, _ := verifyProofWithUpdates(proof, root, key, value, hasher)
+func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash, keySize int) bool {
+	if len(key) != keySize {
+		return false
+	}
+	result, _ := verifyProofWithUpdates(proof, root, key, value, hasher, keySize)
 	return result
 }
 
-func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) (bool, [][][]byte) {
+func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash, keySize int) (bool, [][][]byte) {
 	th := newTreeHasher(hasher)
-	path := th.path(key)
 
-	if !proof.sanityCheck(th) {
+	if !proof.sanityCheck(th, keySize) {
 		return false, nil
 	}
 
@@ -119,8 +121,8 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		if proof.NonMembershipLeafData == nil { // Leaf is a placeholder value.
 			currentHash = th.placeholder()
 		} else { // Leaf is an unrelated leaf.
-			actualPath, valueHash := th.parseLeaf(proof.NonMembershipLeafData)
-			if bytes.Equal(actualPath, path) {
+			actualPath, valueHash := th.parseLeaf(proof.NonMembershipLeafData, keySize)
+			if bytes.Equal(actualPath, key) {
 				// This is not an unrelated leaf; non-membership proof failed.
 				return false, nil
 			}
@@ -132,7 +134,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		}
 	} else { // Membership proof.
 		valueHash := th.digest(value)
-		currentHash, currentData = th.digestLeaf(path, valueHash)
+		currentHash, currentData = th.digestLeaf(key, valueHash)
 		update := make([][]byte, 2)
 		update[0], update[1] = currentHash, currentData
 		updates = append(updates, update)
@@ -140,10 +142,12 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 
 	// Recompute root.
 	for i := 0; i < len(proof.SideNodes); i++ {
-		node := make([]byte, th.pathSize())
-		copy(node, proof.SideNodes[i])
+		node := make([]byte, hasher.Size())
+		if copy(node, proof.SideNodes[i]) != len(proof.SideNodes[i]) {
+			return false, nil
+		}
 
-		if getBitAtFromMSB(path, len(proof.SideNodes)-1-i) == right {
+		if getBitAtFromMSB(key, len(proof.SideNodes)-1-i) == right {
 			currentHash, currentData = th.digestNode(node, currentHash)
 		} else {
 			currentHash, currentData = th.digestNode(currentHash, node)
@@ -158,19 +162,22 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
-func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-	decompactedProof, err := DecompactProof(proof, hasher)
+func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash, keySize int) bool {
+	if len(key) != keySize {
+		return false
+	}
+	decompactedProof, err := DecompactProof(proof, hasher, keySize)
 	if err != nil {
 		return false
 	}
-	return VerifyProof(decompactedProof, root, key, value, hasher)
+	return VerifyProof(decompactedProof, root, key, value, hasher, keySize)
 }
 
 // CompactProof compacts a proof, to reduce its size.
-func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkleProof, error) {
+func CompactProof(proof SparseMerkleProof, hasher hash.Hash, keySize int) (SparseCompactMerkleProof, error) {
 	th := newTreeHasher(hasher)
 
-	if !proof.sanityCheck(th) {
+	if !proof.sanityCheck(th, keySize) {
 		return SparseCompactMerkleProof{}, ErrBadProof
 	}
 
@@ -196,10 +203,10 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 }
 
 // DecompactProof decompacts a proof, so that it can be used for VerifyProof.
-func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMerkleProof, error) {
+func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash, keySize int) (SparseMerkleProof, error) {
 	th := newTreeHasher(hasher)
 
-	if !proof.sanityCheck(th) {
+	if !proof.sanityCheck(th, keySize) {
 		return SparseMerkleProof{}, ErrBadProof
 	}
 

@@ -14,8 +14,10 @@ type treeHasher struct {
 }
 
 func newTreeHasher(hasher hash.Hash) *treeHasher {
-	th := treeHasher{hasher: hasher}
-	th.zeroValue = make([]byte, th.pathSize())
+	th := treeHasher{
+		hasher: hasher,
+	}
+	th.zeroValue = make([]byte, th.hasher.Size())
 
 	return &th
 }
@@ -27,25 +29,19 @@ func (th *treeHasher) digest(data []byte) []byte {
 	return sum
 }
 
-func (th *treeHasher) path(key []byte) []byte {
-	return th.digest(key)
-}
-
 func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {
 	value := make([]byte, 0, len(leafPrefix)+len(path)+len(leafData))
 	value = append(value, leafPrefix...)
 	value = append(value, path...)
 	value = append(value, leafData...)
 
-	th.hasher.Write(value)
-	sum := th.hasher.Sum(nil)
-	th.hasher.Reset()
+	sum := th.digest(value)
 
 	return sum, value
 }
 
-func (th *treeHasher) parseLeaf(data []byte) ([]byte, []byte) {
-	return data[len(leafPrefix) : th.pathSize()+len(leafPrefix)], data[len(leafPrefix)+th.pathSize():]
+func (th *treeHasher) parseLeaf(data []byte, keySize int) ([]byte, []byte) {
+	return data[len(leafPrefix) : keySize+len(leafPrefix)], data[len(leafPrefix)+keySize:]
 }
 
 func (th *treeHasher) isLeaf(data []byte) bool {
@@ -58,19 +54,13 @@ func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []b
 	value = append(value, leftData...)
 	value = append(value, rightData...)
 
-	th.hasher.Write(value)
-	sum := th.hasher.Sum(nil)
-	th.hasher.Reset()
+	sum := th.digest(value)
 
 	return sum, value
 }
 
 func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
-	return data[len(nodePrefix) : th.pathSize()+len(nodePrefix)], data[len(nodePrefix)+th.pathSize():]
-}
-
-func (th *treeHasher) pathSize() int {
-	return th.hasher.Size()
+	return data[len(nodePrefix) : th.hasher.Size()+len(nodePrefix)], data[len(nodePrefix)+th.hasher.Size():]
 }
 
 func (th *treeHasher) placeholder() []byte {

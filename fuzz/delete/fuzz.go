@@ -3,7 +3,6 @@ package delete
 import (
 	"bytes"
 	"crypto/sha256"
-
 	"github.com/celestiaorg/smt"
 )
 
@@ -17,11 +16,14 @@ func Fuzz(data []byte) int {
 		return -1
 	}
 
-	smn, smv := smt.NewSimpleMap(), smt.NewSimpleMap()
-	tree := smt.NewSparseMerkleTree(smn, smv, sha256.New())
+	hasher := sha256.New()
+	keySize := 10
+	smn, _ := smt.NewSimpleMap(hasher.Size())
+	smv, _ := smt.NewSimpleMap(keySize)
+	tree := smt.NewSparseMerkleTree(smn, smv, hasher)
 	for i := 0; i < len(splits)-1; i += 2 {
 		key, value := splits[i], splits[i+1]
-		tree.Update(key, value)
+		_, _ = tree.Update(key, value)
 	}
 
 	deleteKey := splits[len(splits)-1]

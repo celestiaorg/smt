@@ -7,14 +7,59 @@ import (
 	"testing"
 )
 
-func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
-	smt := NewSparseMerkleTree(NewSimpleMap(), NewSimpleMap(), sha256.New())
+func TestDeepSubTreeKeySizeChecks(t *testing.T) {
+	hasher := sha256.New()
+	keySize := len([]byte("testKey1"))
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(keySize)
+	smt := NewSparseMerkleTree(smn, smv, hasher)
 
-	smt.Update([]byte("testKey1"), []byte("testValue1"))
-	smt.Update([]byte("testKey2"), []byte("testValue2"))
-	smt.Update([]byte("testKey3"), []byte("testValue3"))
-	smt.Update([]byte("testKey4"), []byte("testValue4"))
-	smt.Update([]byte("testKey6"), []byte("testValue6"))
+	_, err := smt.Update([]byte("testKey1"), []byte("testValue1"))
+	if err != nil {
+		t.Errorf("couldn't update smt. exception: %v", err)
+	}
+
+	proof, err := smt.Prove([]byte("testKey1"))
+	if err != nil {
+		t.Errorf("couldn't prove existing key. Actual exception: %v", err)
+	}
+
+	smn, _ = NewSimpleMap(hasher.Size())
+	smv, _ = NewSimpleMap(keySize)
+	dsmst := NewDeepSparseMerkleSubTree(smn, smv, hasher, smt.Root())
+
+	err = dsmst.AddBranch(proof, randomBytes(keySize+1), []byte("testValue1"))
+	if err != ErrWrongKeySize {
+		t.Errorf("should have complained of `keySize + 1` when adding branch. Actual exception: %v", err)
+	}
+
+	err = dsmst.AddBranch(proof, randomBytes(keySize-1), []byte("testValue1"))
+	if err != ErrWrongKeySize {
+		t.Errorf("should have complained of `keySize - 1` when adding branch. Actual exception: %v", err)
+	}
+
+	_, err = dsmst.GetDescend(randomBytes(keySize + 1))
+	if err != ErrWrongKeySize {
+		t.Errorf("should have complained of `keySize + 1` when getting descend. Actual exception: %v", err)
+	}
+
+	_, err = dsmst.GetDescend(randomBytes(keySize - 1))
+	if err != ErrWrongKeySize {
+		t.Errorf("should have complained of `keySize - 1` when getting descend. Actual exception: %v", err)
+	}
+}
+
+func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
+	hasher := sha256.New()
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(len([]byte("testKey1")))
+	smt := NewSparseMerkleTree(smn, smv, hasher)
+
+	_, _ = smt.Update([]byte("testKey1"), []byte("testValue1"))
+	_, _ = smt.Update([]byte("testKey2"), []byte("testValue2"))
+	_, _ = smt.Update([]byte("testKey3"), []byte("testValue3"))
+	_, _ = smt.Update([]byte("testKey4"), []byte("testValue4"))
+	_, _ = smt.Update([]byte("testKey6"), []byte("testValue6"))
 
 	originalRoot := make([]byte, len(smt.Root()))
 	copy(originalRoot, smt.Root())
@@ -23,7 +68,9 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 	proof2, _ := smt.ProveUpdatable([]byte("testKey2"))
 	proof5, _ := smt.ProveUpdatable([]byte("testKey5"))
 
-	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), NewSimpleMap(), sha256.New(), smt.Root())
+	smn, _ = NewSimpleMap(hasher.Size())
+	smv, _ = NewSimpleMap(len([]byte("testKey1")))
+	dsmst := NewDeepSparseMerkleSubTree(smn, smv, hasher, smt.Root())
 	err := dsmst.AddBranch(proof1, []byte("testKey1"), []byte("testValue1"))
 	if err != nil {
 		t.Errorf("returned error when adding branch to deep subtree: %v", err)
@@ -141,17 +188,22 @@ func TestDeepSparseMerkleSubTreeBasic(t *testing.T) {
 }
 
 func TestDeepSparseMerkleSubTreeBadInput(t *testing.T) {
-	smt := NewSparseMerkleTree(NewSimpleMap(), NewSimpleMap(), sha256.New())
+	hasher := sha256.New()
+	smn, _ := NewSimpleMap(hasher.Size())
+	smv, _ := NewSimpleMap(len([]byte("testKey1")))
+	smt := NewSparseMerkleTree(smn, smv, hasher)
 
-	smt.Update([]byte("testKey1"), []byte("testValue1"))
-	smt.Update([]byte("testKey2"), []byte("testValue2"))
-	smt.Update([]byte("testKey3"), []byte("testValue3"))
-	smt.Update([]byte("testKey4"), []byte("testValue4"))
+	_, _ = smt.Update([]byte("testKey1"), []byte("testValue1"))
+	_, _ = smt.Update([]byte("testKey2"), []byte("testValue2"))
+	_, _ = smt.Update([]byte("testKey3"), []byte("testValue3"))
+	_, _ = smt.Update([]byte("testKey4"), []byte("testValue4"))
 
 	badProof, _ := smt.Prove([]byte("testKey1"))
 	badProof.SideNodes[0][0] = byte(0)
 
-	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), NewSimpleMap(), sha256.New(), smt.Root())
+	smn, _ = NewSimpleMap(hasher.Size())
+	smv, _ = NewSimpleMap(len([]byte("testKey1")))
+	dsmst := NewDeepSparseMerkleSubTree(smn, smv, hasher, smt.Root())
 	err := dsmst.AddBranch(badProof, []byte("testKey1"), []byte("testValue1"))
 	if !errors.Is(err, ErrBadProof) {
 		t.Error("did not return ErrBadProof for bad proof input")
