@@ -2,9 +2,13 @@ package smt
 
 import (
 	"bytes"
+	"errors"
 	"hash"
 	"math"
 )
+
+// ErrBadProof is returned when an invalid Merkle proof is supplied.
+var ErrBadProof = errors.New("bad proof")
 
 // SparseMerkleProof is a Merkle proof for an element in a SparseMerkleTree.
 type SparseMerkleProof struct {

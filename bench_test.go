@@ -8,7 +8,7 @@ import (
 
 func BenchmarkSparseMerkleTree_Update(b *testing.B) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -20,7 +20,7 @@ func BenchmarkSparseMerkleTree_Update(b *testing.B) {
 
 func BenchmarkSparseMerkleTree_Delete(b *testing.B) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 
 	for i := 0; i < 100000; i++ {
 		s := strconv.Itoa(i)

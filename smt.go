@@ -17,17 +17,16 @@ var errKeyAlreadyEmpty = errors.New("key already empty")
 
 // SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
-	th            treeHasher
-	nodes, values MapStore
-	root          []byte
+	th    treeHasher
+	nodes MapStore
+	root  []byte
 }
 
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
-func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Option) *SparseMerkleTree {
+func NewSparseMerkleTree(nodes MapStore, hasher hash.Hash, options ...Option) *SparseMerkleTree {
 	smt := SparseMerkleTree{
-		th:     *newTreeHasher(hasher),
-		nodes:  nodes,
-		values: values,
+		th:    *newTreeHasher(hasher),
+		nodes: nodes,
 	}
 
 	for _, option := range options {
@@ -40,12 +39,11 @@ func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Op
 }
 
 // ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
-func ImportSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
+func ImportSparseMerkleTree(nodes MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
 	smt := SparseMerkleTree{
-		th:     *newTreeHasher(hasher),
-		nodes:  nodes,
-		values: values,
-		root:   root,
+		th:    *newTreeHasher(hasher),
+		nodes: nodes,
+		root:  root,
 	}
 	return &smt
 }
@@ -64,40 +62,6 @@ func (smt *SparseMerkleTree) depth() int {
 	return smt.th.pathSize() * 8
 }
 
-// Get gets the value of a key from the tree.
-func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
-	// Get tree's root
-	root := smt.Root()
-
-	if bytes.Equal(root, smt.th.placeholder()) {
-		// The tree is empty, return the default value.
-		return defaultValue, nil
-	}
-
-	path := smt.th.path(key)
-	value, err := smt.values.Get(path)
-
-	if err != nil {
-		var invalidKeyError *InvalidKeyError
-
-		if errors.As(err, &invalidKeyError) {
-			// If key isn't found, return default value
-			return defaultValue, nil
-		} else {
-			// Otherwise percolate up any other error
-			return nil, err
-		}
-	}
-	return value, nil
-}
-
-// Has returns true if the value at the given key is non-default, false
-// otherwise.
-func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
-	val, err := smt.Get(key)
-	return !bytes.Equal(defaultValue, val), err
-}
-
 // Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	root := smt.Root()
@@ -114,9 +78,6 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 		if errors.Is(err, errKeyAlreadyEmpty) {
 			// This key is already empty; return the old root.
 			return root, nil
-		}
-		if err := smt.values.Delete(path); err != nil {
-			return nil, err
 		}
 
 	} else {
@@ -246,9 +207,6 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		if err := smt.nodes.Delete(pathNodes[0]); err != nil {
 			return nil, err
 		}
-		if err := smt.values.Delete(path); err != nil {
-			return nil, err
-		}
 	}
 	// All remaining path nodes are orphaned
 	for i := 1; i < len(pathNodes); i++ {
@@ -288,9 +246,6 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 			return nil, err
 		}
 		currentData = currentHash
-	}
-	if err := smt.values.Set(path, value); err != nil {
-		return nil, err
 	}
 
 	return currentHash, nil

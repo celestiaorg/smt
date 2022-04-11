@@ -11,7 +11,7 @@ import (
 // Test base case tree update operations with a few keys.
 func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 	var value []byte
 	var has bool
 	var err error
@@ -100,7 +100,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	}
 
 	// Test that a tree can be imported from a MapStore.
-	smt2 := ImportSparseMerkleTree(smn, smv, sha256.New(), smt.Root())
+	smt2 := ImportSMTWithStorage(smn, smv, sha256.New(), smt.Root())
 	value, err = smt2.Get([]byte("testKey"))
 	if err != nil {
 		t.Error("returned error when getting non-empty key")
@@ -114,7 +114,7 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 func TestSparseMerkleTreeKnown(t *testing.T) {
 	h := newDummyHasher(sha256.New())
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, h)
+	smt := NewSMTWithStorage(smn, smv, h)
 	var value []byte
 	var err error
 
@@ -191,40 +191,13 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 	if !bytes.Equal([]byte("testValue5"), value) {
 		t.Error("did not get correct value when getting non-empty key")
 	}
-
-	proof1, _ := smt.Prove(key1)
-	proof2, _ := smt.Prove(key2)
-	proof3, _ := smt.Prove(key3)
-	proof4, _ := smt.Prove(key4)
-	proof5, _ := smt.Prove(key5)
-	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), NewSimpleMap(), h, smt.Root())
-	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof2, key2, []byte("testValue2"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof3, key3, []byte("testValue3"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof4, key4, []byte("testValue4"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof5, key5, []byte("testValue5"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
 }
 
 // Test tree operations when two leafs are immediate neighbors.
 func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 	h := newDummyHasher(sha256.New())
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, h)
+	smt := NewSMTWithStorage(smn, smv, h)
 	var value []byte
 	var err error
 
@@ -278,7 +251,7 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 // Test base case tree delete operations with a few keys.
 func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 
 	// Testing inserting, deleting a key, and inserting it again.
 	_, err := smt.Update([]byte("testKey"), []byte("testValue"))
@@ -469,7 +442,7 @@ func (h *dummyHasher) BlockSize() int {
 
 func TestOrphanRemoval(t *testing.T) {
 	var smn, smv *SimpleMap
-	var smt *SparseMerkleTree
+	var smt *SMTWithStorage
 	var err error
 	nodeCount := func() int {
 		return len(smn.m)
@@ -477,7 +450,7 @@ func TestOrphanRemoval(t *testing.T) {
 
 	setup := func() {
 		smn, smv = NewSimpleMap(), NewSimpleMap()
-		smt = NewSparseMerkleTree(smn, smv, sha256.New())
+		smt = NewSMTWithStorage(smn, smv, sha256.New())
 		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
 		if err != nil {
 			t.Errorf("returned error when updating empty key: %v", err)
