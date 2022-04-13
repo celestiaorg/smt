@@ -56,6 +56,7 @@ func (smt *SMTWithStorage) Delete(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Don't delete from preimages, since there could be duplicate values
 	return r, nil
 }
 
