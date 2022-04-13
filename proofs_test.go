@@ -19,18 +19,19 @@ func TestProofsBasic(t *testing.T) {
 
 	smn, smv = NewSimpleMap(), NewSimpleMap()
 	smt = NewSMTWithStorage(smn, smv, sha256.New())
+	smt_ := smt.SMT.(*SparseMerkleTree)
 
 	// Generate and verify a proof on an empty key.
 	proof, err = smt.Prove([]byte("testKey3"))
-	checkCompactEquivalence(t, proof, smt.th.hasher)
+	checkCompactEquivalence(t, proof, smt_.th.hasher)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion on empty key")
 	}
-	result = VerifyProof(proof, bytes.Repeat([]byte{0}, smt.th.hasher.Size()), []byte("testKey3"), defaultValue, smt.th.hasher)
+	result = VerifyProof(proof, bytes.Repeat([]byte{0}, smt_.th.hasher.Size()), []byte("testKey3"), defaultValue, smt_.th.hasher)
 	if !result {
 		t.Error("valid proof on empty key failed to verify")
 	}
-	result = VerifyProof(proof, root, []byte("testKey3"), []byte("badValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey3"), []byte("badValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -38,15 +39,15 @@ func TestProofsBasic(t *testing.T) {
 	// Add a key, generate and verify a Merkle proof.
 	root, _ = smt.Update([]byte("testKey"), []byte("testValue"))
 	proof, err = smt.Prove([]byte("testKey"))
-	checkCompactEquivalence(t, proof, smt.th.hasher)
+	checkCompactEquivalence(t, proof, smt_.th.hasher)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
 	}
-	result = VerifyProof(proof, root, []byte("testKey"), []byte("testValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey"), []byte("testValue"), smt_.th.hasher)
 	if !result {
 		t.Error("valid proof failed to verify")
 	}
-	result = VerifyProof(proof, root, []byte("testKey"), []byte("badValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey"), []byte("badValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -54,68 +55,68 @@ func TestProofsBasic(t *testing.T) {
 	// Add a key, generate and verify both Merkle proofs.
 	root, _ = smt.Update([]byte("testKey2"), []byte("testValue"))
 	proof, err = smt.Prove([]byte("testKey"))
-	checkCompactEquivalence(t, proof, smt.th.hasher)
+	checkCompactEquivalence(t, proof, smt_.th.hasher)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
 	}
-	result = VerifyProof(proof, root, []byte("testKey"), []byte("testValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey"), []byte("testValue"), smt_.th.hasher)
 	if !result {
 		t.Error("valid proof failed to verify")
 	}
-	result = VerifyProof(proof, root, []byte("testKey"), []byte("badValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey"), []byte("badValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(randomiseProof(proof), root, []byte("testKey"), []byte("testValue"), smt.th.hasher)
+	result = VerifyProof(randomiseProof(proof), root, []byte("testKey"), []byte("testValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
 
 	proof, err = smt.Prove([]byte("testKey2"))
-	checkCompactEquivalence(t, proof, smt.th.hasher)
+	checkCompactEquivalence(t, proof, smt_.th.hasher)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion")
 	}
-	result = VerifyProof(proof, root, []byte("testKey2"), []byte("testValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey2"), []byte("testValue"), smt_.th.hasher)
 	if !result {
 		t.Error("valid proof failed to verify")
 	}
-	result = VerifyProof(proof, root, []byte("testKey2"), []byte("badValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey2"), []byte("badValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(randomiseProof(proof), root, []byte("testKey2"), []byte("testValue"), smt.th.hasher)
+	result = VerifyProof(randomiseProof(proof), root, []byte("testKey2"), []byte("testValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
 
 	// Try proving a default value for a non-default leaf.
-	th := newTreeHasher(smt.th.hasher)
+	th := newTreeHasher(smt_.th.hasher)
 	_, leafData := th.digestLeaf(th.path([]byte("testKey2")), th.digest([]byte("testValue")))
 	proof = SparseMerkleProof{
 		SideNodes:             proof.SideNodes,
 		NonMembershipLeafData: leafData,
 	}
-	result = VerifyProof(proof, root, []byte("testKey2"), defaultValue, smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey2"), defaultValue, smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
 
 	// Generate and verify a proof on an empty key.
 	proof, err = smt.Prove([]byte("testKey3"))
-	checkCompactEquivalence(t, proof, smt.th.hasher)
+	checkCompactEquivalence(t, proof, smt_.th.hasher)
 	if err != nil {
 		t.Error("error returned when trying to prove inclusion on empty key")
 	}
-	result = VerifyProof(proof, root, []byte("testKey3"), defaultValue, smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey3"), defaultValue, smt_.th.hasher)
 	if !result {
 		t.Error("valid proof on empty key failed to verify")
 	}
-	result = VerifyProof(proof, root, []byte("testKey3"), []byte("badValue"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey3"), []byte("badValue"), smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	result = VerifyProof(randomiseProof(proof), root, []byte("testKey3"), defaultValue, smt.th.hasher)
+	result = VerifyProof(randomiseProof(proof), root, []byte("testKey3"), defaultValue, smt_.th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -125,7 +126,7 @@ func TestProofsBasic(t *testing.T) {
 func TestProofsSanityCheck(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSMTWithStorage(smn, smv, sha256.New())
-	th := &smt.th
+	th := &smt.SMT.(*SparseMerkleTree).th
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
 	smt.Update([]byte("testKey2"), []byte("testValue2"))
@@ -134,7 +135,7 @@ func TestProofsSanityCheck(t *testing.T) {
 
 	// Case: invalid number of sidenodes.
 	proof, _ := smt.Prove([]byte("testKey1"))
-	sideNodes := make([][]byte, smt.th.pathSize()*8+1)
+	sideNodes := make([][]byte, th.pathSize()*8+1)
 	for i := range sideNodes {
 		sideNodes[i] = proof.SideNodes[0]
 	}
@@ -142,11 +143,11 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result := VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result := VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	_, err := CompactProof(proof, smt.th.hasher)
+	_, err := CompactProof(proof, th.hasher)
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
@@ -157,11 +158,11 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	_, err = CompactProof(proof, smt.th.hasher)
+	_, err = CompactProof(proof, th.hasher)
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
@@ -172,26 +173,26 @@ func TestProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	_, err = CompactProof(proof, smt.th.hasher)
+	_, err = CompactProof(proof, th.hasher)
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
 
 	// Case: incorrect non-nil sibling data
-	proof, _ = smt.ProveUpdatable([]byte("testKey1"))
-	proof.SiblingData = smt.th.digest(proof.SiblingData)
+	proof, _ = smt.SMT.(*SparseMerkleTree).ProveUpdatable([]byte("testKey1"))
+	proof.SiblingData = th.digest(proof.SiblingData)
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result = VerifyProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
-	_, err = CompactProof(proof, smt.th.hasher)
+	_, err = CompactProof(proof, th.hasher)
 	if err == nil {
 		t.Error("did not return error when compacting a malformed proof")
 	}
@@ -201,7 +202,7 @@ func TestProofsSanityCheck(t *testing.T) {
 func TestCompactProofsSanityCheck(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSMTWithStorage(smn, smv, sha256.New())
-	th := &smt.th
+	th := &smt.SMT.(*SparseMerkleTree).th
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
 	smt.Update([]byte("testKey2"), []byte("testValue2"))
@@ -218,7 +219,7 @@ func TestCompactProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result := VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result := VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -229,7 +230,7 @@ func TestCompactProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}
@@ -240,7 +241,7 @@ func TestCompactProofsSanityCheck(t *testing.T) {
 	if proof.sanityCheck(th) {
 		t.Error("sanity check incorrectly passed")
 	}
-	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), smt.th.hasher)
+	result = VerifyCompactProof(proof, root, []byte("testKey1"), []byte("testValue1"), th.hasher)
 	if result {
 		t.Error("invalid proof verification returned true")
 	}

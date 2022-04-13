@@ -79,6 +79,7 @@ func bulkOperations(t *testing.T, operations int, insert int, update int, delete
 }
 
 func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv *map[string]string) {
+	smt_ := smt.SMT.(*SparseMerkleTree)
 	for k, v := range *kv {
 		value, err := smt.Get([]byte(k))
 		if err != nil {
@@ -89,18 +90,18 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv *map[string]string) {
 		}
 
 		// Generate and verify a Merkle proof for this key.
-		proof, err := smt.Prove([]byte(k))
+		proof, err := smt_.Prove([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
+		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt_.th.hasher) {
 			t.Error("Merkle proof failed to verify")
 		}
-		compactProof, err := smt.ProveCompact([]byte(k))
+		compactProof, err := smt_.ProveCompact([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.th.hasher) {
+		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt_.th.hasher) {
 			t.Error("Merkle proof failed to verify")
 		}
 
@@ -114,12 +115,12 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv *map[string]string) {
 			if v2 == "" {
 				continue
 			}
-			commonPrefix := countCommonPrefix(smt.th.path([]byte(k)), smt.th.path([]byte(k2)))
-			if commonPrefix != smt.depth() && commonPrefix > largestCommonPrefix {
+			commonPrefix := countCommonPrefix(smt_.th.path([]byte(k)), smt_.th.path([]byte(k2)))
+			if commonPrefix != smt_.depth() && commonPrefix > largestCommonPrefix {
 				largestCommonPrefix = commonPrefix
 			}
 		}
-		sideNodes, _, _, _, err := smt.sideNodesForRoot(smt.th.path([]byte(k)), smt.Root(), false)
+		sideNodes, _, _, _, err := smt_.sideNodesForRoot(smt_.th.path([]byte(k)), smt.Root(), false)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
