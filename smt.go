@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	left  = 0
 	right = 1
 )
 
@@ -20,6 +21,7 @@ type SparseMerkleTree struct {
 	th    treeHasher
 	nodes MapStore
 	root  []byte
+	ph    PathHasher
 }
 
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
@@ -28,22 +30,28 @@ func NewSparseMerkleTree(nodes MapStore, hasher hash.Hash, options ...Option) *S
 		th:    *newTreeHasher(hasher),
 		nodes: nodes,
 	}
-
 	for _, option := range options {
 		option(&smt)
 	}
-
+	if smt.ph == nil {
+		smt.ph = &smt.th
+	}
 	smt.SetRoot(smt.th.placeholder())
-
 	return &smt
 }
 
 // ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
-func ImportSparseMerkleTree(nodes MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
+func ImportSparseMerkleTree(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *SparseMerkleTree {
 	smt := SparseMerkleTree{
 		th:    *newTreeHasher(hasher),
 		nodes: nodes,
 		root:  root,
+	}
+	for _, option := range options {
+		option(&smt)
+	}
+	if smt.ph == nil {
+		smt.ph = &smt.th
 	}
 	return &smt
 }
@@ -59,12 +67,12 @@ func (smt *SparseMerkleTree) SetRoot(root []byte) {
 }
 
 func (smt *SparseMerkleTree) depth() int {
-	return smt.th.pathSize() * 8
+	return smt.ph.Size() * 8
 }
 
 // Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
-	path := smt.th.path(key)
+	path := smt.ph.Path(key)
 	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, smt.root, false)
 	if err != nil {
 		return nil, err
@@ -100,7 +108,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 		// This key is already empty as it is a placeholder; return an error.
 		return nil, errKeyAlreadyEmpty
 	}
-	actualPath, _ := smt.th.parseLeaf(oldLeafData)
+	actualPath, _ := parseLeaf(oldLeafData, smt.ph)
 	if !bytes.Equal(path, actualPath) {
 		// This key is already empty as a different key was found its place; return an error.
 		return nil, errKeyAlreadyEmpty
@@ -121,7 +129,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 				return nil, err
 			}
 
-			if smt.th.isLeaf(sideNodeValue) {
+			if isLeaf(sideNodeValue) {
 				// This is the leaf sibling that needs to be bubbled up the tree.
 				currentHash = sideNode
 				currentData = sideNode
@@ -181,7 +189,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 		commonPrefixCount = smt.depth()
 	} else {
 		var actualPath []byte
-		actualPath, oldValueHash = smt.th.parseLeaf(oldLeafData)
+		actualPath, oldValueHash = parseLeaf(oldLeafData, smt.ph)
 		commonPrefixCount = countCommonPrefix(path, actualPath)
 	}
 	if commonPrefixCount != smt.depth() {
@@ -271,7 +279,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 	currentData, err := smt.nodes.Get(root)
 	if err != nil {
 		return nil, nil, nil, nil, err
-	} else if smt.th.isLeaf(currentData) {
+	} else if isLeaf(currentData) {
 		// If the root is a leaf, there are also no sidenodes to return.
 		return sideNodes, pathNodes, currentData, nil, nil
 	}
@@ -302,7 +310,7 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 		currentData, err = smt.nodes.Get(nodeHash)
 		if err != nil {
 			return nil, nil, nil, nil, err
-		} else if smt.th.isLeaf(currentData) {
+		} else if isLeaf(currentData) {
 			// If the node is a leaf, we've reached the end.
 			break
 		}
@@ -332,7 +340,7 @@ func (smt *SparseMerkleTree) ProveUpdatable(key []byte) (SparseMerkleProof, erro
 }
 
 func (smt *SparseMerkleTree) doProve(key []byte, isUpdatable bool) (SparseMerkleProof, error) {
-	path := smt.th.path(key)
+	path := smt.ph.Path(key)
 	sideNodes, pathNodes, leafData, siblingData, err := smt.sideNodesForRoot(path, smt.root, isUpdatable)
 	if err != nil {
 		return SparseMerkleProof{}, err
@@ -349,7 +357,7 @@ func (smt *SparseMerkleTree) doProve(key []byte, isUpdatable bool) (SparseMerkle
 	// value, we do not need to add anything else to the proof.
 	var nonMembershipLeafData []byte
 	if !bytes.Equal(pathNodes[0], smt.th.placeholder()) {
-		actualPath, _ := smt.th.parseLeaf(leafData)
+		actualPath, _ := parseLeaf(leafData, smt.ph)
 		if !bytes.Equal(actualPath, path) {
 			// This is a non-membership proof that involves showing a different leaf.
 			// Add the leaf data to the proof.
@@ -383,15 +391,15 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 		return defaultValue, nil
 	}
 
-	path := smt.th.path(key)
+	path := smt.ph.Path(key)
 	currentHash := smt.root
 	for i := 0; i < smt.depth(); i++ {
 		currentData, err := smt.nodes.Get(currentHash)
 		if err != nil {
 			return nil, err
-		} else if smt.th.isLeaf(currentData) {
+		} else if isLeaf(currentData) {
 			// We've reached the end. Is this the actual leaf?
-			p, valueHash := smt.th.parseLeaf(currentData)
+			p, valueHash := parseLeaf(currentData, smt.ph)
 			if !bytes.Equal(path, p) {
 				// Nope. Therefore the key is actually empty.
 				return defaultValue, nil
@@ -418,7 +426,7 @@ func (smt *SparseMerkleTree) GetDescend(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, valueHash := smt.th.parseLeaf(currentData)
+	_, valueHash := parseLeaf(currentData, smt.ph)
 	return valueHash, nil
 }
 

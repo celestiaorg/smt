@@ -3,7 +3,6 @@ package smt
 import (
 	"bytes"
 	"crypto/sha256"
-	"hash"
 	"math/rand"
 	"testing"
 )
@@ -112,28 +111,28 @@ func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 
 // Test known tree ops
 func TestSparseMerkleTreeKnown(t *testing.T) {
-	h := newDummyHasher(sha256.New())
+	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSMTWithStorage(smn, smv, h)
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
-	baseKey := make([]byte, h.Size()+4)
-	key1 := make([]byte, h.Size()+4)
+	baseKey := make([]byte, ph.Size())
+	key1 := make([]byte, ph.Size())
+	key2 := make([]byte, ph.Size())
+	key3 := make([]byte, ph.Size())
+	key4 := make([]byte, ph.Size())
+	key5 := make([]byte, ph.Size())
 	copy(key1, baseKey)
-	key1[4] = byte(0b00000000)
-	key2 := make([]byte, h.Size()+4)
 	copy(key2, baseKey)
-	key2[4] = byte(0b01000000)
-	key3 := make([]byte, h.Size()+4)
 	copy(key3, baseKey)
-	key3[4] = byte(0b10000000)
-	key4 := make([]byte, h.Size()+4)
 	copy(key4, baseKey)
-	key4[4] = byte(0b11000000)
-	key5 := make([]byte, h.Size()+4)
 	copy(key5, baseKey)
-	key5[4] = byte(0b11010000)
+	key1[0] = byte(0b00000000)
+	key2[0] = byte(0b01000000)
+	key3[0] = byte(0b10000000)
+	key4[0] = byte(0b11000000)
+	key5[0] = byte(0b11010000)
 
 	_, err = smt.Update(key1, []byte("testValue1"))
 	if err != nil {
@@ -195,25 +194,21 @@ func TestSparseMerkleTreeKnown(t *testing.T) {
 
 // Test tree operations when two leafs are immediate neighbors.
 func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
-	h := newDummyHasher(sha256.New())
+	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSMTWithStorage(smn, smv, h)
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
 	// Make two neighboring keys.
-	//
-	// The dummy hash function expects keys to prefixed with four bytes of 0,
-	// which will cause it to return the preimage itself as the digest, without
-	// the first four bytes.
-	key1 := make([]byte, h.Size()+4)
+	// The dummy hash function will return the preimage itself as the digest.
+	key1 := make([]byte, ph.Size())
+	key2 := make([]byte, ph.Size())
 	rand.Read(key1)
-	key1[0], key1[1], key1[2], key1[3] = byte(0), byte(0), byte(0), byte(0)
-	key1[h.Size()+4-1] = byte(0)
-	key2 := make([]byte, h.Size()+4)
 	copy(key2, key1)
 	// We make key2's least significant bit different than key1's
-	key2[h.Size()+4-1] = byte(1)
+	key1[ph.Size()-1] = byte(0)
+	key2[ph.Size()-1] = byte(1)
 
 	_, err = smt.Update(key1, []byte("testValue1"))
 	if err != nil {
@@ -395,53 +390,6 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 		t.Error("tree root is not as expected after re-inserting key after deletion")
 	}
 
-}
-
-// dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
-type dummyHasher struct {
-	baseHasher hash.Hash
-	data       []byte
-}
-
-func newDummyHasher(baseHasher hash.Hash) hash.Hash {
-	return &dummyHasher{
-		baseHasher: baseHasher,
-	}
-}
-
-func (h *dummyHasher) Write(data []byte) (int, error) {
-	h.data = append(h.data, data...)
-	return len(data), nil
-}
-
-func (h *dummyHasher) Sum(prefix []byte) []byte {
-	preimage := make([]byte, len(h.data))
-	copy(preimage, h.data)
-	preimage = append(prefix, preimage...)
-
-	var digest []byte
-	// Keys should be prefixed with four bytes of value 0.
-	if bytes.Equal(preimage[:4], []byte{0, 0, 0, 0}) && len(preimage) == h.Size()+4 {
-		digest = preimage[4:]
-	} else {
-		h.baseHasher.Write(preimage)
-		digest = h.baseHasher.Sum(nil)
-		h.baseHasher.Reset()
-	}
-
-	return digest
-}
-
-func (h *dummyHasher) Reset() {
-	h.data = nil
-}
-
-func (h *dummyHasher) Size() int {
-	return h.baseHasher.Size()
-}
-
-func (h *dummyHasher) BlockSize() int {
-	return h.Size()
 }
 
 func TestOrphanRemoval(t *testing.T) {

@@ -115,12 +115,12 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv *map[string]string) {
 			if v2 == "" {
 				continue
 			}
-			commonPrefix := countCommonPrefix(smt_.th.path([]byte(k)), smt_.th.path([]byte(k2)))
+			commonPrefix := countCommonPrefix(smt_.ph.Path([]byte(k)), smt_.ph.Path([]byte(k2)))
 			if commonPrefix != smt_.depth() && commonPrefix > largestCommonPrefix {
 				largestCommonPrefix = commonPrefix
 			}
 		}
-		sideNodes, _, _, _, err := smt_.sideNodesForRoot(smt_.th.path([]byte(k)), smt.Root(), false)
+		sideNodes, _, _, _, err := smt_.sideNodesForRoot(smt_.ph.Path([]byte(k)), smt.Root(), false)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}

@@ -92,7 +92,7 @@ func TestProofsBasic(t *testing.T) {
 
 	// Try proving a default value for a non-default leaf.
 	th := newTreeHasher(smt_.th.hasher)
-	_, leafData := th.digestLeaf(th.path([]byte("testKey2")), th.digest([]byte("testValue")))
+	_, leafData := th.digestLeaf(th.Path([]byte("testKey2")), th.digest([]byte("testValue")))
 	proof = SparseMerkleProof{
 		SideNodes:             proof.SideNodes,
 		NonMembershipLeafData: leafData,

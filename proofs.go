@@ -34,7 +34,7 @@ func (proof *SparseMerkleProof) sanityCheck(th *treeHasher) bool {
 	if len(proof.SideNodes) > th.pathSize()*8 ||
 
 		// Check that leaf data for non-membership proofs is the correct size.
-		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hasher.Size()) {
+		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+th.pathSize()+th.hashSize()) {
 		return false
 	}
 
@@ -109,7 +109,7 @@ func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte,
 
 func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) (bool, [][][]byte) {
 	th := newTreeHasher(hasher)
-	path := th.path(key)
+	path := th.Path(key)
 
 	if !proof.sanityCheck(th) {
 		return false, nil
@@ -123,7 +123,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		if proof.NonMembershipLeafData == nil { // Leaf is a placeholder value.
 			currentHash = th.placeholder()
 		} else { // Leaf is an unrelated leaf.
-			actualPath, valueHash := th.parseLeaf(proof.NonMembershipLeafData)
+			actualPath, valueHash := parseLeaf(proof.NonMembershipLeafData, th)
 			if bytes.Equal(actualPath, path) {
 				// This is not an unrelated leaf; non-membership proof failed.
 				return false, nil
@@ -144,7 +144,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 
 	// Recompute root.
 	for i := 0; i < len(proof.SideNodes); i++ {
-		node := make([]byte, th.pathSize())
+		node := make([]byte, th.hashSize())
 		copy(node, proof.SideNodes[i])
 
 		if getBitAtFromMSB(path, len(proof.SideNodes)-1-i) == right {

@@ -23,9 +23,9 @@ type SMTWithStorage struct {
 }
 
 // NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
-func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash) *SMTWithStorage {
+func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...Option) *SMTWithStorage {
 	return &SMTWithStorage{
-		SMT:       NewSparseMerkleTree(nodes, hasher),
+		SMT:       NewSparseMerkleTree(nodes, hasher, options...),
 		preimages: preimages,
 	}
 }
@@ -89,3 +89,17 @@ func (smt *SMTWithStorage) Has(key []byte) (bool, error) {
 func (smt *SparseMerkleTree) hashValue(value []byte) []byte {
 	return smt.th.digest(value)
 }
+
+// dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
+type dummyPathHasher struct {
+	size int
+}
+
+func (h dummyPathHasher) Path(key []byte) []byte {
+	if len(key) != h.size {
+		panic("len(key) must equal path size")
+	}
+	return key
+}
+
+func (h dummyPathHasher) Size() int { return h.size }
