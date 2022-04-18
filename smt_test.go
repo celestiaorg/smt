@@ -252,6 +252,7 @@ func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
 func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSMTWithStorage(smn, smv, sha256.New())
+	rootEmpty := smt.Root()
 
 	// Testing inserting, deleting a key, and inserting it again.
 	_, err := smt.Update([]byte("testKey"), []byte("testValue"))
@@ -376,6 +377,9 @@ func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
 	if has {
 		t.Error("returned 'true' when checking existernce of deleted key")
 	}
+	if !bytes.Equal(rootEmpty, smt.Root()) {
+		t.Error("tree root is not as expected after deletion")
+	}
 	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
 	if err != nil {
 		t.Errorf("returned error when updating empty key: %v", err)
@@ -485,40 +489,18 @@ func TestOrphanRemoval(t *testing.T) {
 	})
 
 	type testCase struct {
-		newKey string
-		count  int
+		keys  []string
+		count int
 	}
+	// sha256(testKey)  = 0001...
+	// sha256(testKey2) = 1000... common prefix = 0; 1 root + 2 leaf = 3 nodes
+	// sha256(foo)      = 0010... common prefix = 2; 1 root + 2 inner + 2 leaf = 5 nodes
 	cases := []testCase{
-		{"testKey2", 3}, // common prefix = 0, root + 2 leaves
-		{"foo", 5},      // common prefix = 2, root + 2 node branch + 2 leaves
+		{[]string{"testKey2"}, 3},
+		{[]string{"foo"}, 5},
+		{[]string{"testKey2", "foo"}, 6},
+		{[]string{"a", "b", "c", "d", "e"}, 16},
 	}
-
-	t.Run("delete multiple", func(t *testing.T) {
-		for _, tc := range cases {
-			setup()
-			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if tc.count != nodeCount() {
-				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
-			}
-			_, err = smt.Delete([]byte("testKey"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 1 != nodeCount() {
-				t.Errorf("expected 1 nodes after deletion, got: %d", nodeCount())
-			}
-			_, err = smt.Delete([]byte(tc.newKey))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 0 != nodeCount() {
-				t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
-			}
-		}
-	})
 
 	t.Run("overwrite and delete", func(t *testing.T) {
 		setup()
@@ -539,33 +521,32 @@ func TestOrphanRemoval(t *testing.T) {
 
 		for _, tc := range cases {
 			setup()
-			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if tc.count != nodeCount() {
-				t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
-			}
-			_, err = smt.Update([]byte(tc.newKey), []byte("testValue3"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
+			for _, key := range tc.keys {
+				_, err = smt.Update([]byte(key), []byte("testValue2"))
+				if err != nil {
+					t.Errorf("returned error when updating non-empty key: %v", err)
+				}
 			}
 			if tc.count != nodeCount() {
 				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
 			}
-			_, err = smt.Delete([]byte("testKey"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
+			for _, key := range tc.keys {
+				_, err = smt.Update([]byte(key), []byte("testValue3"))
+				if err != nil {
+					t.Errorf("returned error when updating non-empty key: %v", err)
+				}
+			}
+			if tc.count != nodeCount() {
+				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
+			}
+			for _, key := range tc.keys {
+				_, err = smt.Delete([]byte(key))
+				if err != nil {
+					t.Errorf("returned error when updating non-empty key: %v", err)
+				}
 			}
 			if 1 != nodeCount() {
 				t.Errorf("expected 1 nodes after deletion, got: %d", nodeCount())
-			}
-			_, err = smt.Delete([]byte(tc.newKey))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 0 != nodeCount() {
-				t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
 			}
 
 		}
