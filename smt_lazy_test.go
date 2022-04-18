@@ -34,7 +34,7 @@ func TestLazyTreeUpdate(t *testing.T) {
 	require.False(t, has)
 
 	// Test updating the empty key.
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey"))
@@ -46,7 +46,7 @@ func TestLazyTreeUpdate(t *testing.T) {
 	require.True(t, has)
 
 	// Test updating the non-empty key.
-	_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+	err = smt.Update([]byte("testKey"), []byte("testValue2"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey"))
@@ -55,7 +55,7 @@ func TestLazyTreeUpdate(t *testing.T) {
 
 	// Test updating a second empty key where the path for both keys share the
 	// first 2 bits (when using SHA256).
-	_, err = smt.Update([]byte("foo"), []byte("testValue"))
+	err = smt.Update([]byte("foo"), []byte("testValue"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("foo"))
@@ -63,7 +63,7 @@ func TestLazyTreeUpdate(t *testing.T) {
 	require.Equal(t, []byte("testValue"), value)
 
 	// Test updating a third empty key.
-	_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
+	err = smt.Update([]byte("testKey2"), []byte("testValue"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey2"))
@@ -77,7 +77,7 @@ func TestLazyTreeUpdate(t *testing.T) {
 	require.NoError(t, lazy.Save())
 
 	// Test that a tree can be imported from a MapStore.
-	lazy, err = ImportLazySMT(smn, sha256.New(), smt.Root())
+	lazy = ImportLazySMT(smn, sha256.New(), smt.Root())
 	require.NoError(t, err)
 	smt = &SMTWithStorage{SMT: lazy, preimages: smv}
 
@@ -101,11 +101,11 @@ func TestLazyTreeDelete(t *testing.T) {
 	rootEmpty := smt.Root()
 
 	// Testing inserting, deleting a key, and inserting it again.
-	_, err := smt.Update([]byte("testKey"), []byte("testValue"))
+	err := smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
 	root1 := smt.Root()
-	_, err = smt.Delete([]byte("testKey"))
+	err = smt.Delete([]byte("testKey"))
 	require.NoError(t, err)
 
 	value, err := smt.Get([]byte("testKey"))
@@ -116,7 +116,7 @@ func TestLazyTreeDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, has, "checking existernce of deleted key")
 
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey"))
@@ -125,10 +125,10 @@ func TestLazyTreeDelete(t *testing.T) {
 	require.Equal(t, root1, smt.Root(), "re-inserting key after deletion")
 
 	// Test inserting and deleting a second key.
-	_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
+	err = smt.Update([]byte("testKey2"), []byte("testValue"))
 	require.NoError(t, err)
 
-	_, err = smt.Delete([]byte("testKey2"))
+	err = smt.Delete([]byte("testKey2"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey2"))
@@ -142,13 +142,13 @@ func TestLazyTreeDelete(t *testing.T) {
 
 	// Test inserting and deleting a different second key, when the the first 2
 	// bits of the path for the two keys in the tree are the same (when using SHA256).
-	_, err = smt.Update([]byte("foo"), []byte("testValue"))
+	err = smt.Update([]byte("foo"), []byte("testValue"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("foo"))
 	require.NoError(t, err)
 
-	_, err = smt.Delete([]byte("foo"))
+	err = smt.Delete([]byte("foo"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("foo"))
@@ -161,11 +161,11 @@ func TestLazyTreeDelete(t *testing.T) {
 	require.Equal(t, root1, smt.Root(), "after deleting second key")
 
 	// Testing inserting, deleting a key, and inserting it again, using Delete
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
 	root1 = smt.Root()
-	_, err = smt.Delete([]byte("testKey"))
+	err = smt.Delete([]byte("testKey"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey"))
@@ -177,7 +177,7 @@ func TestLazyTreeDelete(t *testing.T) {
 	require.False(t, has, "checking existernce of deleted key")
 	require.Equal(t, rootEmpty, smt.Root())
 
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
 	value, err = smt.Get([]byte("testKey"))
@@ -207,17 +207,17 @@ func TestLazyTreeKnown(t *testing.T) {
 	keys[4][0] = byte(0b11010000)
 	keys[5][0] = byte(0b11100000)
 
-	_, err = smt.Update(keys[0], []byte("testValue1"))
+	err = smt.Update(keys[0], []byte("testValue1"))
 	require.NoError(t, err)
-	_, err = smt.Update(keys[1], []byte("testValue2"))
+	err = smt.Update(keys[1], []byte("testValue2"))
 	require.NoError(t, err)
-	_, err = smt.Update(keys[2], []byte("testValue3"))
+	err = smt.Update(keys[2], []byte("testValue3"))
 	require.NoError(t, err)
-	_, err = smt.Update(keys[3], []byte("testValue4"))
+	err = smt.Update(keys[3], []byte("testValue4"))
 	require.NoError(t, err)
-	_, err = smt.Update(keys[4], []byte("testValue5"))
+	err = smt.Update(keys[4], []byte("testValue5"))
 	require.NoError(t, err)
-	_, err = smt.Update(keys[5], []byte("testValue6"))
+	err = smt.Update(keys[5], []byte("testValue6"))
 	require.NoError(t, err)
 
 	value, err = smt.Get(keys[0])
@@ -236,7 +236,7 @@ func TestLazyTreeKnown(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue4"), value)
 
-	_, err = smt.Delete(keys[3])
+	err = smt.Delete(keys[3])
 	require.NoError(t, err)
 
 	value, err = smt.Get(keys[4])
@@ -266,10 +266,10 @@ func TestLazyTreeMaxHeightCase(t *testing.T) {
 	key1[ph.Size()-1] = byte(0)
 	key2[ph.Size()-1] = byte(1)
 
-	_, err = smt.Update(key1, []byte("testValue1"))
+	err = smt.Update(key1, []byte("testValue1"))
 	require.NoError(t, err)
 
-	_, err = smt.Update(key2, []byte("testValue2"))
+	err = smt.Update(key2, []byte("testValue2"))
 	require.NoError(t, err)
 
 	value, err = smt.Get(key1)
@@ -300,21 +300,21 @@ func TestLazyOrphanRemoval(t *testing.T) {
 		lazy = NewLazySMT(smn, sha256.New())
 		smt = &SMTWithStorage{SMT: lazy, preimages: smv}
 
-		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
+		err = smt.Update([]byte("testKey"), []byte("testValue"))
 		require.NoError(t, err)
 		require.Equal(t, 1, nodeCount(t)) // only root node
 	}
 
 	t.Run("delete 1", func(t *testing.T) {
 		setup()
-		_, err = smt.Delete([]byte("testKey"))
+		err = smt.Delete([]byte("testKey"))
 		require.NoError(t, err)
 		require.Equal(t, 0, nodeCount(t))
 	})
 
 	t.Run("overwrite 1", func(t *testing.T) {
 		setup()
-		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		err = smt.Update([]byte("testKey"), []byte("testValue2"))
 		require.NoError(t, err)
 		require.Equal(t, 1, nodeCount(t))
 	})
@@ -335,32 +335,32 @@ func TestLazyOrphanRemoval(t *testing.T) {
 
 	t.Run("overwrite and delete", func(t *testing.T) {
 		setup()
-		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		err = smt.Update([]byte("testKey"), []byte("testValue2"))
 		require.NoError(t, err)
 		require.Equal(t, 1, nodeCount(t))
 
-		_, err = smt.Delete([]byte("testKey"))
+		err = smt.Delete([]byte("testKey"))
 		require.NoError(t, err)
 		require.Equal(t, 0, nodeCount(t))
 
 		for tci, tc := range cases {
 			setup()
 			for _, key := range tc.keys {
-				_, err = smt.Update([]byte(key), []byte("testValue2"))
+				err = smt.Update([]byte(key), []byte("testValue2"))
 				require.NoError(t, err, tci)
 			}
 			require.Equal(t, tc.count, nodeCount(t), tci)
 
 			// overwrite
 			for _, key := range tc.keys {
-				_, err = smt.Update([]byte(key), []byte("testValue3"))
+				err = smt.Update([]byte(key), []byte("testValue3"))
 				require.NoError(t, err, tci)
 			}
 			require.Equal(t, tc.count, nodeCount(t), tci)
 
 			// deletion removes all branches
 			for _, key := range tc.keys {
-				_, err = smt.Delete([]byte(key))
+				err = smt.Delete([]byte(key))
 				require.NoError(t, err, tci)
 			}
 			require.Equal(t, 1, nodeCount(t), tci)

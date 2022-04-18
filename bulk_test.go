@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"math/rand"
-	"reflect"
 	"testing"
 )
 
@@ -20,13 +19,15 @@ func TestSparseMerkleTree(t *testing.T) {
 	}
 }
 
+type bulkop struct{ key, val []byte }
+
 // Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
 func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSMTWithStorage(smn, smv, sha256.New())
+	smt := NewLazySMTWithStorage(smn, smv, sha256.New())
 
 	max := insert + update + delete
-	kv := make(map[string]string)
+	var kv []bulkop
 
 	for i := 0; i < operations; i++ {
 		n := rand.Intn(max)
@@ -39,48 +40,45 @@ func bulkOperations(t *testing.T, operations int, insert int, update int, delete
 			val := make([]byte, valLen)
 			rand.Read(val)
 
-			kv[string(key)] = string(val)
-			_, err := smt.Update(key, val)
+			err := smt.Update(key, val)
 			if err != nil {
-				t.Errorf("error: %v", err)
+				t.Fatalf("error: %v", err)
 			}
+			kv = append(kv, bulkop{key, val})
 		} else if n > insert && n < insert+update { // Update
-			keys := reflect.ValueOf(kv).MapKeys()
-			if len(keys) == 0 {
+			if len(kv) == 0 {
 				continue
 			}
-			key := []byte(keys[rand.Intn(len(keys))].Interface().(string))
-
+			ki := rand.Intn(len(kv))
 			valLen := 1 + rand.Intn(64)
 			val := make([]byte, valLen)
 			rand.Read(val)
 
-			kv[string(key)] = string(val)
-			_, err := smt.Update(key, val)
+			err := smt.Update(kv[ki].key, val)
 			if err != nil {
-				t.Errorf("error: %v", err)
+				t.Fatalf("error: %v", err)
 			}
+			kv[ki].val = val
 		} else { // Delete
-			keys := reflect.ValueOf(kv).MapKeys()
-			if len(keys) == 0 {
+			if len(kv) == 0 {
 				continue
 			}
-			key := []byte(keys[rand.Intn(len(keys))].Interface().(string))
+			ki := rand.Intn(len(kv))
 
-			kv[string(key)] = ""
-			_, err := smt.Update(key, defaultValue)
-			if err != nil {
-				t.Errorf("error: %v", err)
+			err := smt.Delete(kv[ki].key)
+			if err != nil && err != errKeyNotPresent {
+				t.Fatalf("error: %v", err)
 			}
+			kv[ki].val = nil
 		}
-
-		bulkCheckAll(t, smt, &kv)
+		bulkCheckAll(t, smt, kv)
 	}
 }
 
-func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv *map[string]string) {
-	smt_ := smt.SMT.(*SparseMerkleTree)
-	for k, v := range *kv {
+func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
+	for ki := range kv {
+		k, v := kv[ki].key, kv[ki].val
+
 		value, err := smt.Get([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
@@ -90,42 +88,41 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv *map[string]string) {
 		}
 
 		// Generate and verify a Merkle proof for this key.
-		proof, err := smt_.Prove([]byte(k))
+		proof, err := smt.Prove([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt_.th.hasher) {
-			t.Error("Merkle proof failed to verify")
+		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.base().th) {
+			t.Error("Merkle proof failed to verify:", []byte(k))
 		}
-		compactProof, err := smt_.ProveCompact([]byte(k))
+		compactProof, err := ProveCompact([]byte(k), smt)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt_.th.hasher) {
+		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.base().th) {
 			t.Error("Merkle proof failed to verify")
 		}
 
-		if v == "" {
+		if v == nil {
 			continue
 		}
 
 		// Check that the key is at the correct height in the tree.
 		largestCommonPrefix := 0
-		for k2, v2 := range *kv {
-			if v2 == "" {
+		for ki2 := range kv {
+			k2, v2 := kv[ki2].key, kv[ki2].val
+			if v2 == nil {
 				continue
 			}
-			commonPrefix := countCommonPrefix(smt_.ph.Path([]byte(k)), smt_.ph.Path([]byte(k2)))
-			if commonPrefix != smt_.depth() && commonPrefix > largestCommonPrefix {
+
+			ph := smt.base().ph
+			commonPrefix := countCommonPrefix(ph.Path([]byte(k)), ph.Path([]byte(k2)))
+			if commonPrefix != smt.base().depth() && commonPrefix > largestCommonPrefix {
 				largestCommonPrefix = commonPrefix
 			}
 		}
-		sideNodes, _, _, _, err := smt_.sideNodesForRoot(smt_.ph.Path([]byte(k)), smt.Root(), false)
-		if err != nil {
-			t.Errorf("error: %v", err)
-		}
 		numSideNodes := 0
-		for _, v := range sideNodes {
+		for _, v := range proof.SideNodes {
 			if v != nil {
 				numSideNodes++
 			}

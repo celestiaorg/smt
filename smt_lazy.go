@@ -13,7 +13,7 @@ var (
 type innerNode struct {
 	leftChild, rightChild treeNode
 	persisted             bool
-	// cached hash digest
+	// Cached hash digest
 	digest []byte
 }
 
@@ -21,7 +21,7 @@ type leafNode struct {
 	path      []byte
 	valueHash []byte
 	persisted bool
-	// cached hash digest
+	// Cached hash digest
 	digest []byte
 }
 
@@ -36,34 +36,38 @@ type treeNode interface {
 }
 
 type LazySMT struct {
-	*SparseMerkleTree
-	cache treeNode
-	// hashes of persisted nodes deleted in cache
+	BaseSMT
+	savedRoot []byte
+	// Current state of tree
+	tree treeNode
+	// Hashes of persisted nodes deleted from tree
 	orphans [][]byte
 }
 
 func NewLazySMT(nodes MapStore, hasher hash.Hash, options ...Option) *LazySMT {
-	return &LazySMT{SparseMerkleTree: NewSparseMerkleTree(nodes, hasher, options...)}
+	smt := BaseSMT{
+		th:    newTreeHasher(hasher),
+		nodes: nodes,
+	}
+	for _, option := range options {
+		option(&smt)
+	}
+	if smt.ph == nil {
+		smt.ph = smt.th
+	}
+	return &LazySMT{BaseSMT: smt}
 }
 
-func ImportLazySMT(
-	nodes MapStore, hasher hash.Hash, root []byte, options ...Option,
-) (smt *LazySMT, err error) {
-	smt = &LazySMT{
-		SparseMerkleTree: ImportSparseMerkleTree(nodes, hasher, root, options...),
-	}
-	smt.cache = &stubNode{smt.root}
-	// todo - optional eager caching
-	// smt.cache, err = smt.recursiveLoad(smt.root)
-	// if err != nil {
-	// 	smt = nil
-	// }
-	return
+func ImportLazySMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *LazySMT {
+	smt := NewLazySMT(nodes, hasher, options...)
+	smt.tree = &stubNode{root}
+	smt.savedRoot = root
+	return smt
 }
 
 func (smt *LazySMT) GetDescend(key []byte) ([]byte, error) {
 	path := smt.ph.Path(key)
-	leaf, err := smt.recursiveGet(smt.cache, 0, path)
+	leaf, err := smt.recursiveGet(smt.tree, 0, path)
 	if err != nil {
 		return nil, err
 	}
@@ -97,17 +101,17 @@ func (smt *LazySMT) recursiveGet(node treeNode, depth int, path []byte) (*leafNo
 	return smt.recursiveGet(child, depth+1, path)
 }
 
-// todo - change method signatures
-func (smt *LazySMT) Update(key []byte, value []byte) ([]byte, error) {
+func (smt *LazySMT) Update(key []byte, value []byte) error {
 	path := smt.ph.Path(key)
+	valueHash := smt.base().th.digest(value)
 	var orphans []treeNode
-	tree, err := smt.recursiveUpdate(smt.cache, 0, path, smt.hashValue(value), &orphans)
+	tree, err := smt.recursiveUpdate(smt.tree, 0, path, valueHash, &orphans)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	smt.orphans = append(smt.orphans, persistedNodeDigests(orphans)...)
-	smt.cache = tree
-	return smt.Root(), nil
+	smt.tree = tree
+	return nil
 }
 
 func (smt *LazySMT) recursiveUpdate(
@@ -124,7 +128,7 @@ func (smt *LazySMT) recursiveUpdate(
 		return newLeaf, nil
 	}
 	if leaf, ok := node.(*leafNode); ok {
-		// todo (optim) - can just count [depth:]
+		// TODO (optimization) - can just count [depth:]
 		prefixlen := countCommonPrefix(path, leaf.path)
 		if prefixlen == smt.depth() { // replace leaf if paths are equal
 			*orphans = append(*orphans, node)
@@ -165,17 +169,16 @@ func (smt *LazySMT) recursiveUpdate(
 	return inner, nil
 }
 
-// todo - change method signatures
-func (smt *LazySMT) Delete(key []byte) ([]byte, error) {
+func (smt *LazySMT) Delete(key []byte) error {
 	path := smt.ph.Path(key)
 	var orphans []treeNode
-	tree, err := smt.recursiveDelete(smt.cache, 0, path, &orphans)
+	tree, err := smt.recursiveDelete(smt.tree, 0, path, &orphans)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	smt.orphans = append(smt.orphans, persistedNodeDigests(orphans)...)
-	smt.cache = tree
-	return smt.Root(), nil
+	smt.tree = tree
+	return nil
 }
 
 func (smt *LazySMT) recursiveDelete(node treeNode, depth int, path []byte, orphans *[]treeNode,
@@ -186,11 +189,11 @@ func (smt *LazySMT) recursiveDelete(node treeNode, depth int, path []byte, orpha
 	}
 
 	if node == nil {
-		return nil, errKeyAlreadyEmpty
+		return nil, errKeyNotPresent
 	}
 	if leaf, ok := node.(*leafNode); ok {
 		if !bytes.Equal(path, leaf.path) {
-			return nil, errKeyAlreadyEmpty
+			return nil, errKeyNotPresent
 		}
 		*orphans = append(*orphans, node)
 		return nil, nil
@@ -232,7 +235,7 @@ func (smt *LazySMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
 	var siblings []treeNode
 	var sib treeNode
 
-	node := smt.cache
+	node := smt.tree
 	for depth := 0; depth < smt.depth(); depth++ {
 		node, err = smt.resolveStub(node)
 		if err != nil {
@@ -261,7 +264,7 @@ func (smt *LazySMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
 		if !bytes.Equal(leaf.path, path) {
 			// This is a non-membership proof that involves showing a different leaf.
 			// Add the leaf data to the proof.
-			_, leafData = smt.th.digestLeaf(leaf.path, leaf.valueHash)
+			leafData = encodeLeaf(leaf.path, leaf.valueHash)
 		}
 	}
 	// Hash siblings from bottom up.
@@ -331,7 +334,7 @@ func (smt *LazySMT) resolve(hash []byte, resolver func([]byte) (treeNode, error)
 }
 
 func (smt *LazySMT) Save() (err error) {
-	if err = smt.recursiveSave(smt.cache, 0); err != nil {
+	if err = smt.recursiveSave(smt.tree, 0); err != nil {
 		return
 	}
 	// All orphans are persisted w/ cached digests, so we don't need to check for null
@@ -341,7 +344,7 @@ func (smt *LazySMT) Save() (err error) {
 		}
 	}
 	smt.orphans = nil
-	smt.root = smt.Root()
+	smt.savedRoot = smt.Root()
 	return
 }
 
@@ -367,7 +370,7 @@ func (smt *LazySMT) recursiveSave(node treeNode, depth int) error {
 }
 
 func (smt *LazySMT) Root() []byte {
-	return smt.hashNode(smt.cache)
+	return smt.hashNode(smt.tree)
 }
 
 func (node *leafNode) Persisted() bool  { return node.persisted }

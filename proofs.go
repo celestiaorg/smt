@@ -3,7 +3,6 @@ package smt
 import (
 	"bytes"
 	"errors"
-	"hash"
 	"math"
 )
 
@@ -102,13 +101,12 @@ func (proof *SparseCompactMerkleProof) sanityCheck(th *treeHasher) bool {
 }
 
 // VerifyProof verifies a Merkle proof.
-func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-	result, _ := verifyProofWithUpdates(proof, root, key, value, hasher)
+func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, th *treeHasher) bool {
+	result, _ := verifyProofWithUpdates(proof, root, key, value, th)
 	return result
 }
 
-func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) (bool, [][][]byte) {
-	th := newTreeHasher(hasher)
+func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, th *treeHasher) (bool, [][][]byte) {
 	path := th.Path(key)
 
 	if !proof.sanityCheck(th) {
@@ -147,10 +145,10 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		node := make([]byte, th.hashSize())
 		copy(node, proof.SideNodes[i])
 
-		if getBitAtFromMSB(path, len(proof.SideNodes)-1-i) == right {
-			currentHash, currentData = th.digestNode(node, currentHash)
-		} else {
+		if getBitAtFromMSB(path, len(proof.SideNodes)-1-i) == left {
 			currentHash, currentData = th.digestNode(currentHash, node)
+		} else {
+			currentHash, currentData = th.digestNode(node, currentHash)
 		}
 
 		update := make([][]byte, 2)
@@ -162,18 +160,16 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
-func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key []byte, value []byte, hasher hash.Hash) bool {
-	decompactedProof, err := DecompactProof(proof, hasher)
+func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key, value []byte, th *treeHasher) bool {
+	decompactedProof, err := DecompactProof(proof, th)
 	if err != nil {
 		return false
 	}
-	return VerifyProof(decompactedProof, root, key, value, hasher)
+	return VerifyProof(decompactedProof, root, key, value, th)
 }
 
 // CompactProof compacts a proof, to reduce its size.
-func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkleProof, error) {
-	th := newTreeHasher(hasher)
-
+func CompactProof(proof SparseMerkleProof, th *treeHasher) (SparseCompactMerkleProof, error) {
 	if !proof.sanityCheck(th) {
 		return SparseCompactMerkleProof{}, ErrBadProof
 	}
@@ -181,7 +177,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 	bitMask := emptyBytes(int(math.Ceil(float64(len(proof.SideNodes)) / float64(8))))
 	var compactedSideNodes [][]byte
 	for i := 0; i < len(proof.SideNodes); i++ {
-		node := make([]byte, th.hasher.Size())
+		node := make([]byte, th.hashSize())
 		copy(node, proof.SideNodes[i])
 		if bytes.Equal(node, th.placeholder()) {
 			setBitAtFromMSB(bitMask, i)
@@ -200,9 +196,7 @@ func CompactProof(proof SparseMerkleProof, hasher hash.Hash) (SparseCompactMerkl
 }
 
 // DecompactProof decompacts a proof, so that it can be used for VerifyProof.
-func DecompactProof(proof SparseCompactMerkleProof, hasher hash.Hash) (SparseMerkleProof, error) {
-	th := newTreeHasher(hasher)
-
+func DecompactProof(proof SparseCompactMerkleProof, th *treeHasher) (SparseMerkleProof, error) {
 	if !proof.sanityCheck(th) {
 		return SparseMerkleProof{}, ErrBadProof
 	}

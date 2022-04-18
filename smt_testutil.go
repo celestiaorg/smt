@@ -3,61 +3,33 @@ package smt
 import (
 	"bytes"
 	"errors"
-	"hash"
 )
-
-type SMT interface {
-	Update(key, value []byte) ([]byte, error)
-	Delete(key []byte) ([]byte, error)
-	GetDescend(key []byte) ([]byte, error)
-	hashValue([]byte) []byte
-
-	Root() []byte
-	Prove(key []byte) (SparseMerkleProof, error)
-	ProveCompact(key []byte) (SparseCompactMerkleProof, error)
-}
 
 type SMTWithStorage struct {
 	SMT
 	preimages MapStore
 }
 
-// NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
-func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...Option) *SMTWithStorage {
-	return &SMTWithStorage{
-		SMT:       NewSparseMerkleTree(nodes, hasher, options...),
-		preimages: preimages,
-	}
-}
-
-// ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
-func ImportSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, root []byte) *SMTWithStorage {
-	return &SMTWithStorage{
-		SMT:       ImportSparseMerkleTree(nodes, hasher, root),
-		preimages: preimages,
-	}
-}
-
-func (smt *SMTWithStorage) Update(key []byte, value []byte) ([]byte, error) {
-	r, err := smt.SMT.Update(key, value)
+func (smt *SMTWithStorage) Update(key []byte, value []byte) error {
+	err := smt.SMT.Update(key, value)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	valueHash := smt.SMT.hashValue(value)
+	valueHash := smt.base().th.digest(value)
 	err = smt.preimages.Set(valueHash, value)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return r, err
+	return err
 }
 
-func (smt *SMTWithStorage) Delete(key []byte) ([]byte, error) {
-	r, err := smt.SMT.Delete(key)
+func (smt *SMTWithStorage) Delete(key []byte) error {
+	err := smt.SMT.Delete(key)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Don't delete from preimages, since there could be duplicate values
-	return r, nil
+	return nil
 }
 
 // Get gets the value of a key from the tree.
@@ -87,8 +59,13 @@ func (smt *SMTWithStorage) Has(key []byte) (bool, error) {
 	return !bytes.Equal(defaultValue, val), err
 }
 
-func (smt *SparseMerkleTree) hashValue(value []byte) []byte {
-	return smt.th.digest(value)
+// ProveCompact generates a compacted Merkle proof for a key against the current root.
+func ProveCompact(key []byte, smt SMT) (SparseCompactMerkleProof, error) {
+	proof, err := smt.Prove(key)
+	if err != nil {
+		return SparseCompactMerkleProof{}, err
+	}
+	return CompactProof(proof, smt.base().th)
 }
 
 // dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
