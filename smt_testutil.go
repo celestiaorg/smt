@@ -5,13 +5,16 @@ import (
 	"errors"
 )
 
+// Wraps an SMT with value storage for use in tests.
+// Uses a mapping to value preimages internally.
+// Note: this doesn't delete from preimages, since there could be duplicate values.
 type SMTWithStorage struct {
-	SMT
+	SparseMerkleTree
 	preimages MapStore
 }
 
 func (smt *SMTWithStorage) Update(key []byte, value []byte) error {
-	err := smt.SMT.Update(key, value)
+	err := smt.SparseMerkleTree.Update(key, value)
 	if err != nil {
 		return err
 	}
@@ -24,17 +27,16 @@ func (smt *SMTWithStorage) Update(key []byte, value []byte) error {
 }
 
 func (smt *SMTWithStorage) Delete(key []byte) error {
-	err := smt.SMT.Delete(key)
+	err := smt.SparseMerkleTree.Delete(key)
 	if err != nil {
 		return err
 	}
-	// Don't delete from preimages, since there could be duplicate values
 	return nil
 }
 
 // Get gets the value of a key from the tree.
 func (smt *SMTWithStorage) Get(key []byte) ([]byte, error) {
-	valueHash, err := smt.SMT.GetDescend(key)
+	valueHash, err := smt.SparseMerkleTree.GetDescend(key)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +62,7 @@ func (smt *SMTWithStorage) Has(key []byte) (bool, error) {
 }
 
 // ProveCompact generates a compacted Merkle proof for a key against the current root.
-func ProveCompact(key []byte, smt SMT) (SparseCompactMerkleProof, error) {
+func ProveCompact(key []byte, smt SparseMerkleTree) (SparseCompactMerkleProof, error) {
 	proof, err := smt.Prove(key)
 	if err != nil {
 		return SparseCompactMerkleProof{}, err

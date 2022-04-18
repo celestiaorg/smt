@@ -24,7 +24,7 @@ type bulkop struct{ key, val []byte }
 // Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
 func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewLazySMTWithStorage(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 
 	max := insert + update + delete
 	var kv []bulkop

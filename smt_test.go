@@ -9,17 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewLazySMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...Option) *SMTWithStorage {
+func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...Option) *SMTWithStorage {
 	return &SMTWithStorage{
-		SMT:       NewLazySMT(nodes, hasher, options...),
-		preimages: preimages,
+		SparseMerkleTree: NewSMT(nodes, hasher, options...),
+		preimages:        preimages,
 	}
 }
 
-func TestLazyTreeUpdate(t *testing.T) {
+func TestTreeUpdate(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	lazy := NewLazySMT(smn, sha256.New())
-	smt := &SMTWithStorage{SMT: lazy, preimages: smv}
+	lazy := NewSMT(smn, sha256.New())
+	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
 	var value []byte
 	var has bool
 	var err error
@@ -77,9 +77,9 @@ func TestLazyTreeUpdate(t *testing.T) {
 	require.NoError(t, lazy.Save())
 
 	// Test that a tree can be imported from a MapStore.
-	lazy = ImportLazySMT(smn, sha256.New(), smt.Root())
+	lazy = ImportSMT(smn, sha256.New(), smt.Root())
 	require.NoError(t, err)
-	smt = &SMTWithStorage{SMT: lazy, preimages: smv}
+	smt = &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
 
 	value, err = smt.Get([]byte("testKey"))
 	require.NoError(t, err)
@@ -95,9 +95,9 @@ func TestLazyTreeUpdate(t *testing.T) {
 }
 
 // Test base case tree delete operations with a few keys.
-func TestLazyTreeDelete(t *testing.T) {
+func TestTreeDelete(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewLazySMTWithStorage(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 	rootEmpty := smt.Root()
 
 	// Testing inserting, deleting a key, and inserting it again.
@@ -187,10 +187,10 @@ func TestLazyTreeDelete(t *testing.T) {
 }
 
 // Test known tree ops
-func TestLazyTreeKnown(t *testing.T) {
+func TestTreeKnown(t *testing.T) {
 	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewLazySMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
@@ -249,10 +249,10 @@ func TestLazyTreeKnown(t *testing.T) {
 }
 
 // Test tree operations when two leafs are immediate neighbors.
-func TestLazyTreeMaxHeightCase(t *testing.T) {
+func TestTreeMaxHeightCase(t *testing.T) {
 	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewLazySMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
@@ -285,20 +285,20 @@ func TestLazyTreeMaxHeightCase(t *testing.T) {
 	require.Equal(t, 256, len(proof.SideNodes), "unexpected proof size")
 }
 
-func TestLazyOrphanRemoval(t *testing.T) {
+func TestOrphanRemoval(t *testing.T) {
 	var smn, smv *SimpleMap
-	var lazy *LazySMT
+	var impl *SMT
 	var smt *SMTWithStorage
 	var err error
 
 	nodeCount := func(t *testing.T) int {
-		require.NoError(t, lazy.Save())
+		require.NoError(t, impl.Save())
 		return len(smn.m)
 	}
 	setup := func() {
 		smn, smv = NewSimpleMap(), NewSimpleMap()
-		lazy = NewLazySMT(smn, sha256.New())
-		smt = &SMTWithStorage{SMT: lazy, preimages: smv}
+		impl = NewSMT(smn, sha256.New())
+		smt = &SMTWithStorage{SparseMerkleTree: impl, preimages: smv}
 
 		err = smt.Update([]byte("testKey"), []byte("testValue"))
 		require.NoError(t, err)
