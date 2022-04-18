@@ -79,7 +79,7 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 	for ki := range kv {
 		k, v := kv[ki].key, kv[ki].val
 
-		value, err := smt.Get([]byte(k))
+		value, err := smt.GetValue([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}

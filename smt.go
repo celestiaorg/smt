@@ -65,7 +65,7 @@ func ImportSMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option)
 	return smt
 }
 
-func (smt *SMT) GetDescend(key []byte) ([]byte, error) {
+func (smt *SMT) Get(key []byte) ([]byte, error) {
 	path := smt.ph.Path(key)
 	leaf, err := smt.recursiveGet(smt.tree, 0, path)
 	if err != nil {

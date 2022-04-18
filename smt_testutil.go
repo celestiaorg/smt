@@ -35,8 +35,8 @@ func (smt *SMTWithStorage) Delete(key []byte) error {
 }
 
 // Get gets the value of a key from the tree.
-func (smt *SMTWithStorage) Get(key []byte) ([]byte, error) {
-	valueHash, err := smt.SparseMerkleTree.GetDescend(key)
+func (smt *SMTWithStorage) GetValue(key []byte) ([]byte, error) {
+	valueHash, err := smt.SparseMerkleTree.Get(key)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (smt *SMTWithStorage) Get(key []byte) ([]byte, error) {
 // Has returns true if the value at the given key is non-default, false
 // otherwise.
 func (smt *SMTWithStorage) Has(key []byte) (bool, error) {
-	val, err := smt.Get(key)
+	val, err := smt.GetValue(key)
 	return !bytes.Equal(defaultValue, val), err
 }
 

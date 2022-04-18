@@ -20,8 +20,8 @@ type SparseMerkleTree interface {
 	Update(key, value []byte) error
 	// Delete deletes a value from the SMT. Raises an error if the key is not present.
 	Delete(key []byte) error
-	// GetDescend descends the tree to access a value. Returns nil if key is not present.
-	GetDescend(key []byte) ([]byte, error)
+	// Get descends the tree to access a value. Returns nil if key is not present.
+	Get(key []byte) ([]byte, error)
 	// Root computes the Merkle root digest.
 	Root() []byte
 	// Prove computes a Merkle proof of membership or non-membership of a key.

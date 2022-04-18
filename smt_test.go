@@ -25,7 +25,7 @@ func TestTreeUpdate(t *testing.T) {
 	var err error
 
 	// Test getting an empty key.
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, defaultValue, value)
 
@@ -37,7 +37,7 @@ func TestTreeUpdate(t *testing.T) {
 	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 
@@ -49,7 +49,7 @@ func TestTreeUpdate(t *testing.T) {
 	err = smt.Update([]byte("testKey"), []byte("testValue2"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue2"), value)
 
@@ -58,7 +58,7 @@ func TestTreeUpdate(t *testing.T) {
 	err = smt.Update([]byte("foo"), []byte("testValue"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("foo"))
+	value, err = smt.GetValue([]byte("foo"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 
@@ -66,11 +66,11 @@ func TestTreeUpdate(t *testing.T) {
 	err = smt.Update([]byte("testKey2"), []byte("testValue"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey2"))
+	value, err = smt.GetValue([]byte("testKey2"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue2"), value)
 
@@ -81,15 +81,15 @@ func TestTreeUpdate(t *testing.T) {
 	require.NoError(t, err)
 	smt = &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue2"), value)
 
-	value, err = smt.Get([]byte("foo"))
+	value, err = smt.GetValue([]byte("foo"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 
-	value, err = smt.Get([]byte("testKey2"))
+	value, err = smt.GetValue([]byte("testKey2"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 }
@@ -108,7 +108,7 @@ func TestTreeDelete(t *testing.T) {
 	err = smt.Delete([]byte("testKey"))
 	require.NoError(t, err)
 
-	value, err := smt.Get([]byte("testKey"))
+	value, err := smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, defaultValue, value, "getting deleted key")
 
@@ -119,7 +119,7 @@ func TestTreeDelete(t *testing.T) {
 	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 	require.Equal(t, root1, smt.Root(), "re-inserting key after deletion")
@@ -131,11 +131,11 @@ func TestTreeDelete(t *testing.T) {
 	err = smt.Delete([]byte("testKey2"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey2"))
+	value, err = smt.GetValue([]byte("testKey2"))
 	require.NoError(t, err)
 	require.Equal(t, defaultValue, value, "getting deleted key")
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 	require.Equal(t, root1, smt.Root(), "after deleting second key")
@@ -145,17 +145,17 @@ func TestTreeDelete(t *testing.T) {
 	err = smt.Update([]byte("foo"), []byte("testValue"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("foo"))
+	value, err = smt.GetValue([]byte("foo"))
 	require.NoError(t, err)
 
 	err = smt.Delete([]byte("foo"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("foo"))
+	value, err = smt.GetValue([]byte("foo"))
 	require.NoError(t, err)
 	require.Equal(t, defaultValue, value, "getting deleted key")
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 	require.Equal(t, root1, smt.Root(), "after deleting second key")
@@ -168,7 +168,7 @@ func TestTreeDelete(t *testing.T) {
 	err = smt.Delete([]byte("testKey"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, defaultValue, value, "getting deleted key")
 
@@ -180,7 +180,7 @@ func TestTreeDelete(t *testing.T) {
 	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
-	value, err = smt.Get([]byte("testKey"))
+	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue"), value)
 	require.Equal(t, root1, smt.Root(), "re-inserting key after deletion")
@@ -220,30 +220,30 @@ func TestTreeKnown(t *testing.T) {
 	err = smt.Update(keys[5], []byte("testValue6"))
 	require.NoError(t, err)
 
-	value, err = smt.Get(keys[0])
+	value, err = smt.GetValue(keys[0])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue1"), value)
 
-	value, err = smt.Get(keys[1])
+	value, err = smt.GetValue(keys[1])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue2"), value)
 
-	value, err = smt.Get(keys[2])
+	value, err = smt.GetValue(keys[2])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue3"), value)
 
-	value, err = smt.Get(keys[3])
+	value, err = smt.GetValue(keys[3])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue4"), value)
 
 	err = smt.Delete(keys[3])
 	require.NoError(t, err)
 
-	value, err = smt.Get(keys[4])
+	value, err = smt.GetValue(keys[4])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue5"), value)
 
-	value, err = smt.Get(keys[5])
+	value, err = smt.GetValue(keys[5])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue6"), value)
 }
@@ -272,11 +272,11 @@ func TestTreeMaxHeightCase(t *testing.T) {
 	err = smt.Update(key2, []byte("testValue2"))
 	require.NoError(t, err)
 
-	value, err = smt.Get(key1)
+	value, err = smt.GetValue(key1)
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue1"), value)
 
-	value, err = smt.Get(key2)
+	value, err = smt.GetValue(key2)
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue2"), value)
 
