@@ -8,7 +8,7 @@ import (
 )
 
 // Test base case Merkle proof operations.
-func TestLazyProofsBasic(t *testing.T) {
+func TestProofsBasic(t *testing.T) {
 	var smn, smv *SimpleMap
 	var smt *SMTWithStorage
 	var proof SparseMerkleProof
@@ -17,7 +17,7 @@ func TestLazyProofsBasic(t *testing.T) {
 	var err error
 
 	smn, smv = NewSimpleMap(), NewSimpleMap()
-	smt = NewLazySMTWithStorage(smn, smv, sha256.New())
+	smt = NewSMTWithStorage(smn, smv, sha256.New())
 	th := smt.base().th
 
 	// Generate and verify a proof on an empty key.
@@ -87,9 +87,9 @@ func TestLazyProofsBasic(t *testing.T) {
 }
 
 // Test sanity check cases for non-compact proofs.
-func TestLazyProofsSanityCheck(t *testing.T) {
+func TestProofsSanityCheck(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewLazySMTWithStorage(smn, smv, sha256.New())
+	smt := NewSMTWithStorage(smn, smv, sha256.New())
 	th := smt.base().th
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
