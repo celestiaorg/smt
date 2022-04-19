@@ -19,23 +19,24 @@ func randomiseProof(proof SparseMerkleProof) SparseMerkleProof {
 }
 
 // Check that a non-compact proof is equivalent to the proof returned when it is compacted and de-compacted.
-func checkCompactEquivalence(t *testing.T, proof SparseMerkleProof, th *treeHasher) {
-	compactedProof, err := CompactProof(proof, th)
+func checkCompactEquivalence(t *testing.T, proof SparseMerkleProof, base *BaseSMT) {
+	t.Helper()
+	compactedProof, err := CompactProof(proof, base)
 	if err != nil {
-		t.Errorf("failed to compact proof %v", err)
+		t.Fatalf("failed to compact proof: %v", err)
 	}
-	decompactedProof, err := DecompactProof(compactedProof, th)
+	decompactedProof, err := DecompactProof(compactedProof, base)
 	if err != nil {
-		t.Errorf("failed to decompact proof %v", err)
+		t.Fatalf("failed to decompact proof: %v", err)
 	}
 
 	for i, sideNode := range proof.SideNodes {
 		if !bytes.Equal(decompactedProof.SideNodes[i], sideNode) {
-			t.Error("de-compacted proof does not match original proof")
+			t.Fatalf("de-compacted proof does not match original proof")
 		}
 	}
 
 	if !bytes.Equal(proof.NonMembershipLeafData, decompactedProof.NonMembershipLeafData) {
-		t.Error("de-compacted proof does not match original proof")
+		t.Fatalf("de-compacted proof does not match original proof")
 	}
 }

@@ -18,7 +18,7 @@ func (smt *SMTWithStorage) Update(key []byte, value []byte) error {
 	if err != nil {
 		return err
 	}
-	valueHash := smt.base().th.digest(value)
+	valueHash := smt.base().digestValue(value)
 	err = smt.preimages.Set(valueHash, value)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func ProveCompact(key []byte, smt SparseMerkleTree) (SparseCompactMerkleProof, e
 	if err != nil {
 		return SparseCompactMerkleProof{}, err
 	}
-	return CompactProof(proof, smt.base().th)
+	return CompactProof(proof, smt.base())
 }
 
 // dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
@@ -82,4 +82,4 @@ func (h dummyPathHasher) Path(key []byte) []byte {
 	return key
 }
 
-func (h dummyPathHasher) Size() int { return h.size }
+func (h dummyPathHasher) PathSize() int { return h.size }

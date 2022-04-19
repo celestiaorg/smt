@@ -37,6 +37,7 @@ type treeNode interface {
 
 type SMT struct {
 	BaseSMT
+	nodes     MapStore
 	savedRoot []byte
 	// Current state of tree
 	tree treeNode
@@ -45,17 +46,10 @@ type SMT struct {
 }
 
 func NewSMT(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
-	smt := BaseSMT{
-		th:    newTreeHasher(hasher),
-		nodes: nodes,
+	return &SMT{
+		BaseSMT: newBaseSMT(hasher, options...),
+		nodes:   nodes,
 	}
-	for _, option := range options {
-		option(&smt)
-	}
-	if smt.ph == nil {
-		smt.ph = smt.th
-	}
-	return &SMT{BaseSMT: smt}
 }
 
 func ImportSMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *SMT {
@@ -103,7 +97,7 @@ func (smt *SMT) recursiveGet(node treeNode, depth int, path []byte) (*leafNode, 
 
 func (smt *SMT) Update(key []byte, value []byte) error {
 	path := smt.ph.Path(key)
-	valueHash := smt.base().th.digest(value)
+	valueHash := smt.digestValue(value)
 	var orphans []treeNode
 	tree, err := smt.recursiveUpdate(smt.tree, 0, path, valueHash, &orphans)
 	if err != nil {
