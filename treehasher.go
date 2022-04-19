@@ -5,15 +5,22 @@ import (
 	"hash"
 )
 
-var leafPrefix = []byte{0}
-var nodePrefix = []byte{1}
+var (
+	leafPrefix = []byte{0}
+	nodePrefix = []byte{1}
+)
+
+var _ PathHasher = (*treeHasher)(nil)
+var _ ValueHasher = (*treeHasher)(nil)
 
 type PathHasher interface {
 	Path([]byte) []byte
-	Size() int
+	PathSize() int
 }
 
-var _ PathHasher = (*treeHasher)(nil)
+type ValueHasher interface {
+	digest([]byte) []byte
+}
 
 type treeHasher struct {
 	hasher    hash.Hash
@@ -23,16 +30,16 @@ type treeHasher struct {
 func newTreeHasher(hasher hash.Hash) *treeHasher {
 	th := treeHasher{hasher: hasher}
 	th.zeroValue = make([]byte, th.hashSize())
-
 	return &th
 }
 
-func (th *treeHasher) Path(key []byte) []byte {
-	return th.digest(key)[:th.pathSize()]
+func (ph *treeHasher) Path(key []byte) []byte {
+	th := treeHasher(*ph)
+	return th.digest(key)[:ph.PathSize()]
 }
 
-func (th *treeHasher) Size() int {
-	return th.pathSize()
+func (ph *treeHasher) PathSize() int {
+	return ph.hasher.Size()
 }
 
 func (th *treeHasher) digest(data []byte) []byte {
@@ -42,25 +49,9 @@ func (th *treeHasher) digest(data []byte) []byte {
 	return sum
 }
 
-func encodeLeaf(path []byte, leafData []byte) []byte {
-	value := make([]byte, 0, len(leafPrefix)+len(path)+len(leafData))
-	value = append(value, leafPrefix...)
-	value = append(value, path...)
-	value = append(value, leafData...)
-	return value
-}
-
 func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {
 	value := encodeLeaf(path, leafData)
 	return th.digest(value), value
-}
-
-func encodeInner(leftData []byte, rightData []byte) []byte {
-	value := make([]byte, 0, len(nodePrefix)+len(leftData)+len(rightData))
-	value = append(value, nodePrefix...)
-	value = append(value, leftData...)
-	value = append(value, rightData...)
-	return value
 }
 
 func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []byte) {
@@ -70,10 +61,6 @@ func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []b
 
 func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
 	return data[len(nodePrefix) : th.hashSize()+len(nodePrefix)], data[len(nodePrefix)+th.hashSize():]
-}
-
-func (th *treeHasher) pathSize() int {
-	return th.hasher.Size()
 }
 
 func (th *treeHasher) hashSize() int {
@@ -89,5 +76,21 @@ func isLeaf(data []byte) bool {
 }
 
 func parseLeaf(data []byte, ph PathHasher) ([]byte, []byte) {
-	return data[len(leafPrefix) : ph.Size()+len(leafPrefix)], data[len(leafPrefix)+ph.Size():]
+	return data[len(leafPrefix) : ph.PathSize()+len(leafPrefix)], data[len(leafPrefix)+ph.PathSize():]
+}
+
+func encodeLeaf(path []byte, leafData []byte) []byte {
+	value := make([]byte, 0, len(leafPrefix)+len(path)+len(leafData))
+	value = append(value, leafPrefix...)
+	value = append(value, path...)
+	value = append(value, leafData...)
+	return value
+}
+
+func encodeInner(leftData []byte, rightData []byte) []byte {
+	value := make([]byte, 0, len(nodePrefix)+len(leftData)+len(rightData))
+	value = append(value, nodePrefix...)
+	value = append(value, leftData...)
+	value = append(value, rightData...)
+	return value
 }

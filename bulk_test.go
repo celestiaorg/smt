@@ -8,7 +8,7 @@ import (
 )
 
 // Test all tree operations in bulk.
-func TestSparseMerkleTree(t *testing.T) {
+func TestBulkOperations(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		// Test more inserts/updates than deletions.
 		bulkOperations(t, 200, 100, 100, 50)
@@ -92,14 +92,14 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.base().th) {
+		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.base()) {
 			t.Error("Merkle proof failed to verify:", []byte(k))
 		}
 		compactProof, err := ProveCompact([]byte(k), smt)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.base().th) {
+		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.base()) {
 			t.Error("Merkle proof failed to verify")
 		}
 

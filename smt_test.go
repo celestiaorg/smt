@@ -186,18 +186,18 @@ func TestTreeDelete(t *testing.T) {
 	require.Equal(t, root1, smt.Root(), "re-inserting key after deletion")
 }
 
-// Test known tree ops
-func TestTreeKnown(t *testing.T) {
+// Test tree ops with known paths
+func TestTreeKnownPath(t *testing.T) {
 	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
-	baseKey := make([]byte, ph.Size())
+	baseKey := make([]byte, ph.PathSize())
 	keys := make([][]byte, 6)
 	for i, _ := range keys {
-		keys[i] = make([]byte, ph.Size())
+		keys[i] = make([]byte, ph.PathSize())
 		copy(keys[i], baseKey)
 	}
 	keys[0][0] = byte(0b00000000)
@@ -258,13 +258,13 @@ func TestTreeMaxHeightCase(t *testing.T) {
 
 	// Make two neighboring keys.
 	// The dummy hash function will return the preimage itself as the digest.
-	key1 := make([]byte, ph.Size())
-	key2 := make([]byte, ph.Size())
+	key1 := make([]byte, ph.PathSize())
+	key2 := make([]byte, ph.PathSize())
 	rand.Read(key1)
 	copy(key2, key1)
 	// We make key2's least significant bit different than key1's
-	key1[ph.Size()-1] = byte(0)
-	key2[ph.Size()-1] = byte(1)
+	key1[ph.PathSize()-1] = byte(0)
+	key2[ph.PathSize()-1] = byte(1)
 
 	err = smt.Update(key1, []byte("testValue1"))
 	require.NoError(t, err)

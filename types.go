@@ -2,6 +2,7 @@ package smt
 
 import (
 	"errors"
+	"hash"
 )
 
 const (
@@ -33,11 +34,25 @@ type SparseMerkleTree interface {
 }
 
 type BaseSMT struct {
-	nodes MapStore
-	th    *treeHasher
-	ph    PathHasher
+	th treeHasher
+	ph PathHasher
+	vh ValueHasher
+}
+
+func newBaseSMT(hasher hash.Hash, options ...Option) BaseSMT {
+	smt := BaseSMT{th: *newTreeHasher(hasher)}
+	smt.ph = &smt.th
+	for _, option := range options {
+		option(&smt)
+	}
+	return smt
 }
 
 func (smt *BaseSMT) base() *BaseSMT { return smt }
-
-func (smt *BaseSMT) depth() int { return smt.ph.Size() * 8 }
+func (smt *BaseSMT) depth() int     { return smt.ph.PathSize() * 8 }
+func (smt *BaseSMT) digestValue(data []byte) []byte {
+	if smt.vh == nil {
+		return data
+	}
+	return smt.vh.digest(data)
+}
