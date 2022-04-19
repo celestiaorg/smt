@@ -11,7 +11,7 @@ const (
 var (
 	defaultValue []byte = nil
 
-	errKeyNotPresent = errors.New("key already empty")
+	ErrKeyNotPresent = errors.New("key already empty")
 )
 
 // SparseMerkleTree represents a Sparse Merkle tree.
@@ -26,6 +26,8 @@ type SparseMerkleTree interface {
 	Root() []byte
 	// Prove computes a Merkle proof of membership or non-membership of a key.
 	Prove(key []byte) (SparseMerkleProof, error)
+	// Save commits the tree's state to its persistent storage.
+	Save() error
 
 	base() *BaseSMT
 }

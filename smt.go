@@ -189,11 +189,11 @@ func (smt *SMT) recursiveDelete(node treeNode, depth int, path []byte, orphans *
 	}
 
 	if node == nil {
-		return nil, errKeyNotPresent
+		return nil, ErrKeyNotPresent
 	}
 	if leaf, ok := node.(*leafNode); ok {
 		if !bytes.Equal(path, leaf.path) {
-			return nil, errKeyNotPresent
+			return nil, ErrKeyNotPresent
 		}
 		*orphans = append(*orphans, node)
 		return nil, nil
