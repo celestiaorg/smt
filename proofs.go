@@ -32,8 +32,8 @@ func (proof *SparseMerkleProof) sanityCheck(base *BaseSMT) bool {
 	// Check that the number of supplied sidenodes does not exceed the maximum possible.
 	if len(proof.SideNodes) > base.ph.PathSize()*8 ||
 
-		// Check that leaf data for non-membership proofs is the correct size.
-		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) != len(leafPrefix)+base.ph.PathSize()+base.th.hashSize()) {
+		// Check that leaf data for non-membership proofs is a valid size.
+		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) < len(leafPrefix)+base.ph.PathSize()) {
 		return false
 	}
 

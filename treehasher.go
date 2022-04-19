@@ -11,6 +11,7 @@ var (
 )
 
 var _ PathHasher = (*treeHasher)(nil)
+var _ ValueHasher = (*treeHasher)(nil)
 
 type PathHasher interface {
 	Path([]byte) []byte
@@ -39,10 +40,6 @@ func (ph *treeHasher) Path(key []byte) []byte {
 
 func (ph *treeHasher) PathSize() int {
 	return ph.hasher.Size()
-}
-
-func (th *treeHasher) digestValue(data []byte) []byte {
-	return th.digest(data)
 }
 
 func (th *treeHasher) digest(data []byte) []byte {
