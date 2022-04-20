@@ -65,38 +65,33 @@ func ImportSMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option)
 
 func (smt *SMT) Get(key []byte) ([]byte, error) {
 	path := smt.ph.Path(key)
-	leaf, err := smt.get(smt.tree, 0, path)
-	if err != nil {
-		return nil, err
+	var leaf *leafNode
+	var err error
+	for node, depth := &smt.tree, 0; ; depth++ {
+		*node, err = smt.resolveLazy(*node)
+		if err != nil {
+			return nil, err
+		}
+		if *node == nil {
+			break
+		}
+		if n, ok := (*node).(*leafNode); ok {
+			if bytes.Equal(path, n.path) {
+				leaf = n
+			}
+			break
+		}
+		inner := (*node).(*innerNode)
+		if getBitAtFromMSB(path, depth) == left {
+			node = &inner.leftChild
+		} else {
+			node = &inner.rightChild
+		}
 	}
 	if leaf == nil {
 		return defaultValue, nil
 	}
 	return leaf.valueHash, nil
-}
-
-func (smt *SMT) get(node treeNode, depth int, path []byte) (*leafNode, error) {
-	node, err := smt.resolveLazy(node)
-	if err != nil {
-		return nil, err
-	}
-	if node == nil {
-		return nil, nil
-	}
-	if leaf, ok := node.(*leafNode); ok {
-		if bytes.Equal(path, leaf.path) {
-			return leaf, nil
-		}
-		return nil, nil
-	}
-	var child treeNode
-	inner := node.(*innerNode)
-	if getBitAtFromMSB(path, depth) == left {
-		child = inner.leftChild
-	} else {
-		child = inner.rightChild
-	}
-	return smt.get(child, depth+1, path)
 }
 
 func (smt *SMT) Update(key []byte, value []byte) error {
