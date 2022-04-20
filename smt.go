@@ -26,7 +26,7 @@ type leafNode struct {
 }
 
 // represents uncached persisted node
-type stubNode struct {
+type lazyNode struct {
 	digest []byte
 }
 
@@ -46,22 +46,26 @@ type SMT struct {
 }
 
 func NewSMT(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
-	return &SMT{
-		BaseSMT: newBaseSMT(hasher, options...),
+	smt := SMT{
+		BaseSMT: newBaseSMT(hasher),
 		nodes:   nodes,
 	}
+	for _, option := range options {
+		option(&smt)
+	}
+	return &smt
 }
 
 func ImportSMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *SMT {
 	smt := NewSMT(nodes, hasher, options...)
-	smt.tree = &stubNode{root}
+	smt.tree = &lazyNode{root}
 	smt.savedRoot = root
 	return smt
 }
 
 func (smt *SMT) Get(key []byte) ([]byte, error) {
 	path := smt.ph.Path(key)
-	leaf, err := smt.recursiveGet(smt.tree, 0, path)
+	leaf, err := smt.get(smt.tree, 0, path)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +75,8 @@ func (smt *SMT) Get(key []byte) ([]byte, error) {
 	return leaf.valueHash, nil
 }
 
-func (smt *SMT) recursiveGet(node treeNode, depth int, path []byte) (*leafNode, error) {
-	node, err := smt.resolveStub(node)
+func (smt *SMT) get(node treeNode, depth int, path []byte) (*leafNode, error) {
+	node, err := smt.resolveLazy(node)
 	if err != nil {
 		return nil, err
 	}
@@ -92,14 +96,14 @@ func (smt *SMT) recursiveGet(node treeNode, depth int, path []byte) (*leafNode, 
 	} else {
 		child = inner.rightChild
 	}
-	return smt.recursiveGet(child, depth+1, path)
+	return smt.get(child, depth+1, path)
 }
 
 func (smt *SMT) Update(key []byte, value []byte) error {
 	path := smt.ph.Path(key)
 	valueHash := smt.digestValue(value)
 	var orphans []treeNode
-	tree, err := smt.recursiveUpdate(smt.tree, 0, path, valueHash, &orphans)
+	tree, err := smt.update(smt.tree, 0, path, valueHash, &orphans)
 	if err != nil {
 		return err
 	}
@@ -108,10 +112,10 @@ func (smt *SMT) Update(key []byte, value []byte) error {
 	return nil
 }
 
-func (smt *SMT) recursiveUpdate(
+func (smt *SMT) update(
 	node treeNode, depth int, path, value []byte, orphans *[]treeNode,
 ) (treeNode, error) {
-	node, err := smt.resolveStub(node)
+	node, err := smt.resolveLazy(node)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +160,7 @@ func (smt *SMT) recursiveUpdate(
 	} else {
 		child = &inner.rightChild
 	}
-	*child, err = smt.recursiveUpdate(*child, depth+1, path, value, orphans)
+	*child, err = smt.update(*child, depth+1, path, value, orphans)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +170,7 @@ func (smt *SMT) recursiveUpdate(
 func (smt *SMT) Delete(key []byte) error {
 	path := smt.ph.Path(key)
 	var orphans []treeNode
-	tree, err := smt.recursiveDelete(smt.tree, 0, path, &orphans)
+	tree, err := smt.delete(smt.tree, 0, path, &orphans)
 	if err != nil {
 		return err
 	}
@@ -175,9 +179,9 @@ func (smt *SMT) Delete(key []byte) error {
 	return nil
 }
 
-func (smt *SMT) recursiveDelete(node treeNode, depth int, path []byte, orphans *[]treeNode,
+func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *[]treeNode,
 ) (treeNode, error) {
-	node, err := smt.resolveStub(node)
+	node, err := smt.resolveLazy(node)
 	if err != nil {
 		return nil, err
 	}
@@ -201,11 +205,11 @@ func (smt *SMT) recursiveDelete(node treeNode, depth int, path []byte, orphans *
 	} else {
 		child, sib = &inner.rightChild, &inner.leftChild
 	}
-	*child, err = smt.recursiveDelete(*child, depth+1, path, orphans)
+	*child, err = smt.delete(*child, depth+1, path, orphans)
 	if err != nil {
 		return nil, err
 	}
-	*sib, err = smt.resolveStub(*sib)
+	*sib, err = smt.resolveLazy(*sib)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +235,7 @@ func (smt *SMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
 
 	node := smt.tree
 	for depth := 0; depth < smt.depth(); depth++ {
-		node, err = smt.resolveStub(node)
+		node, err = smt.resolveLazy(node)
 		if err != nil {
 			return
 		}
@@ -275,7 +279,7 @@ func (smt *SMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
 		NonMembershipLeafData: leafData,
 	}
 	if sib != nil {
-		sib, err = smt.resolveStub(sib)
+		sib, err = smt.resolveLazy(sib)
 		if err != nil {
 			return
 		}
@@ -289,13 +293,13 @@ func (smt *SMT) recursiveLoad(hash []byte) (treeNode, error) {
 }
 
 // resolves a stub into a cached node
-func (smt *SMT) resolveStub(node treeNode) (treeNode, error) {
-	stub, ok := node.(*stubNode)
+func (smt *SMT) resolveLazy(node treeNode) (treeNode, error) {
+	stub, ok := node.(*lazyNode)
 	if !ok {
 		return node, nil
 	}
 	resolver := func(hash []byte) (treeNode, error) {
-		return &stubNode{hash}, nil
+		return &lazyNode{hash}, nil
 	}
 	return smt.resolve(stub.digest, resolver)
 }
@@ -328,7 +332,7 @@ func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
 }
 
 func (smt *SMT) Save() (err error) {
-	if err = smt.recursiveSave(smt.tree, 0); err != nil {
+	if err = smt.save(smt.tree, 0); err != nil {
 		return
 	}
 	// All orphans are persisted w/ cached digests, so we don't need to check for null
@@ -342,7 +346,7 @@ func (smt *SMT) Save() (err error) {
 	return
 }
 
-func (smt *SMT) recursiveSave(node treeNode, depth int) error {
+func (smt *SMT) save(node treeNode, depth int) error {
 	if node != nil && node.Persisted() {
 		return nil
 	}
@@ -351,10 +355,10 @@ func (smt *SMT) recursiveSave(node treeNode, depth int) error {
 		n.persisted = true
 	case *innerNode:
 		n.persisted = true
-		if err := smt.recursiveSave(n.leftChild, depth+1); err != nil {
+		if err := smt.save(n.leftChild, depth+1); err != nil {
 			return err
 		}
-		if err := smt.recursiveSave(n.rightChild, depth+1); err != nil {
+		if err := smt.save(n.rightChild, depth+1); err != nil {
 			return err
 		}
 	default:
@@ -369,16 +373,16 @@ func (smt *SMT) Root() []byte {
 
 func (node *leafNode) Persisted() bool  { return node.persisted }
 func (node *innerNode) Persisted() bool { return node.persisted }
-func (node *stubNode) Persisted() bool  { return true }
+func (node *lazyNode) Persisted() bool  { return true }
 
 func (node *leafNode) cachedDigest() []byte  { return node.digest }
 func (node *innerNode) cachedDigest() []byte { return node.digest }
-func (node *stubNode) cachedDigest() []byte  { return node.digest }
+func (node *lazyNode) cachedDigest() []byte  { return node.digest }
 
 func (smt *SMT) serialize(node treeNode) (data []byte) {
 	switch n := node.(type) {
-	case *stubNode:
-		panic("serialize(stubNode)")
+	case *lazyNode:
+		panic("serialize(lazyNode)")
 	case *leafNode:
 		return encodeLeaf(n.path, n.valueHash)
 	case *innerNode:
@@ -396,7 +400,7 @@ func (smt *SMT) hashNode(node treeNode) []byte {
 	}
 	var cache *[]byte
 	switch n := node.(type) {
-	case *stubNode:
+	case *lazyNode:
 		return n.digest
 	case *leafNode:
 		cache = &n.digest

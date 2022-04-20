@@ -39,12 +39,10 @@ type BaseSMT struct {
 	vh ValueHasher
 }
 
-func newBaseSMT(hasher hash.Hash, options ...Option) BaseSMT {
+func newBaseSMT(hasher hash.Hash) BaseSMT {
 	smt := BaseSMT{th: *newTreeHasher(hasher)}
-	smt.ph = &smt.th
-	for _, option := range options {
-		option(&smt)
-	}
+	smt.ph = &pathHasher{smt.th}
+	smt.vh = &smt.th
 	return smt
 }
 

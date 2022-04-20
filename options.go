@@ -1,12 +1,12 @@
 package smt
 
 // Option is a function that configures SparseMerkleTree.
-type Option func(*BaseSMT)
+type Option func(*SMT)
 
 func SetPathHasher(ph PathHasher) Option {
-	return func(smt *BaseSMT) { smt.ph = ph }
+	return func(smt *SMT) { smt.ph = ph }
 }
 
 func SetValueHasher(vh ValueHasher) Option {
-	return func(smt *BaseSMT) { smt.vh = vh }
+	return func(smt *SMT) { smt.vh = vh }
 }
