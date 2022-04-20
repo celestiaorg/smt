@@ -10,7 +10,7 @@ var (
 	nodePrefix = []byte{1}
 )
 
-var _ PathHasher = (*treeHasher)(nil)
+var _ PathHasher = (*pathHasher)(nil)
 var _ ValueHasher = (*treeHasher)(nil)
 
 type PathHasher interface {
@@ -26,6 +26,9 @@ type treeHasher struct {
 	hasher    hash.Hash
 	zeroValue []byte
 }
+type pathHasher struct {
+	treeHasher
+}
 
 func newTreeHasher(hasher hash.Hash) *treeHasher {
 	th := treeHasher{hasher: hasher}
@@ -33,12 +36,11 @@ func newTreeHasher(hasher hash.Hash) *treeHasher {
 	return &th
 }
 
-func (ph *treeHasher) Path(key []byte) []byte {
-	th := treeHasher(*ph)
-	return th.digest(key)[:ph.PathSize()]
+func (ph *pathHasher) Path(key []byte) []byte {
+	return ph.digest(key)[:ph.PathSize()]
 }
 
-func (ph *treeHasher) PathSize() int {
+func (ph *pathHasher) PathSize() int {
 	return ph.hasher.Size()
 }
 
