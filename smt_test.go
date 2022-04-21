@@ -16,7 +16,7 @@ func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...O
 	}
 }
 
-func TestTreeUpdate(t *testing.T) {
+func TestTreeUpdateBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	lazy := NewSMT(smn, sha256.New())
 	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
@@ -95,7 +95,7 @@ func TestTreeUpdate(t *testing.T) {
 }
 
 // Test base case tree delete operations with a few keys.
-func TestTreeDelete(t *testing.T) {
+func TestTreeDeleteBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSMTWithStorage(smn, smv, sha256.New())
 	rootEmpty := smt.Root()
@@ -201,7 +201,7 @@ func TestTreeKnownPath(t *testing.T) {
 		copy(keys[i], baseKey)
 	}
 	keys[0][0] = byte(0b00000000)
-	keys[1][0] = byte(0b01000000)
+	keys[1][0] = byte(0b00100000)
 	keys[2][0] = byte(0b10000000)
 	keys[3][0] = byte(0b11000000)
 	keys[4][0] = byte(0b11010000)
