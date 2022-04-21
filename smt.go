@@ -10,6 +10,11 @@ var (
 	_ treeNode = (*leafNode)(nil)
 )
 
+type treeNode interface {
+	Persisted() bool
+	CachedDigest() []byte
+}
+
 type innerNode struct {
 	leftChild, rightChild treeNode
 	persisted             bool
@@ -28,11 +33,6 @@ type leafNode struct {
 // represents uncached persisted node
 type lazyNode struct {
 	digest []byte
-}
-
-type treeNode interface {
-	Persisted() bool
-	cachedDigest() []byte
 }
 
 type SMT struct {
@@ -370,9 +370,9 @@ func (node *leafNode) Persisted() bool  { return node.persisted }
 func (node *innerNode) Persisted() bool { return node.persisted }
 func (node *lazyNode) Persisted() bool  { return true }
 
-func (node *leafNode) cachedDigest() []byte  { return node.digest }
-func (node *innerNode) cachedDigest() []byte { return node.digest }
-func (node *lazyNode) cachedDigest() []byte  { return node.digest }
+func (node *leafNode) CachedDigest() []byte  { return node.digest }
+func (node *innerNode) CachedDigest() []byte { return node.digest }
+func (node *lazyNode) CachedDigest() []byte  { return node.digest }
 
 func (smt *SMT) serialize(node treeNode) (data []byte) {
 	switch n := node.(type) {
@@ -418,7 +418,7 @@ func (inner *innerNode) clone() *innerNode {
 func persistedNodeDigests(nodes []treeNode) (ret [][]byte) {
 	for _, node := range nodes {
 		if node.Persisted() {
-			ret = append(ret, node.cachedDigest())
+			ret = append(ret, node.CachedDigest())
 		}
 	}
 	return
