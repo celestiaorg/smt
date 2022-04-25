@@ -5,21 +5,28 @@ import (
 	"crypto/sha256"
 	"math/rand"
 	"testing"
+	// "github.com/stretchr/testify/require"
 )
+
+type opCounts struct{ ops, inserts, updates, deletes int }
+type bulkop struct{ key, val []byte }
 
 // Test all tree operations in bulk.
 func TestBulkOperations(t *testing.T) {
-	for i := 0; i < 5; i++ {
+	rand.Seed(1)
+
+	cases := []opCounts{
 		// Test more inserts/updates than deletions.
-		bulkOperations(t, 200, 100, 100, 50)
-	}
-	for i := 0; i < 5; i++ {
+		{200, 100, 100, 50},
+		{1000, 100, 100, 50},
 		// Test extreme deletions.
-		bulkOperations(t, 200, 100, 100, 500)
+		{200, 100, 100, 500},
+		{1000, 100, 100, 500},
+	}
+	for _, tc := range cases {
+		bulkOperations(t, tc.ops, tc.inserts, tc.updates, tc.deletes)
 	}
 }
-
-type bulkop struct{ key, val []byte }
 
 // Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
 func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
@@ -69,10 +76,10 @@ func bulkOperations(t *testing.T, operations int, insert int, update int, delete
 			if err != nil && err != ErrKeyNotPresent {
 				t.Fatalf("error: %v", err)
 			}
-			kv[ki].val = nil
+			kv[ki].val = defaultValue
 		}
-		bulkCheckAll(t, smt, kv)
 	}
+	bulkCheckAll(t, smt, kv)
 }
 
 func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
@@ -84,7 +91,7 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 			t.Errorf("error: %v", err)
 		}
 		if !bytes.Equal([]byte(v), value) {
-			t.Error("got incorrect value when bulk testing operations")
+			t.Errorf("Incorrect value (i=%d)", ki)
 		}
 
 		// Generate and verify a Merkle proof for this key.
@@ -93,14 +100,14 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 			t.Errorf("error: %v", err)
 		}
 		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.base()) {
-			t.Error("Merkle proof failed to verify:", []byte(k))
+			t.Fatalf("Merkle proof failed to verify (i=%d): %v", ki, []byte(k))
 		}
 		compactProof, err := ProveCompact([]byte(k), smt)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
 		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.base()) {
-			t.Error("Merkle proof failed to verify")
+			t.Fatalf("Compact Merkle proof failed to verify (i=%d): %v", ki, []byte(k))
 		}
 
 		if v == nil {
@@ -121,14 +128,9 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 				largestCommonPrefix = commonPrefix
 			}
 		}
-		numSideNodes := 0
-		for _, v := range proof.SideNodes {
-			if v != nil {
-				numSideNodes++
-			}
-		}
-		if numSideNodes != largestCommonPrefix+1 && (numSideNodes != 0 && largestCommonPrefix != 0) {
-			t.Error("leaf is at unexpected height")
+		if len(proof.SideNodes) != largestCommonPrefix+1 &&
+			(len(proof.SideNodes) != 0 && largestCommonPrefix != 0) {
+			t.Errorf("leaf is at unexpected height (ki=%d)", ki)
 		}
 	}
 }
