@@ -160,7 +160,7 @@ func TestTreeDeleteBasic(t *testing.T) {
 	require.Equal(t, []byte("testValue"), value)
 	require.Equal(t, root1, smt.Root(), "after deleting second key")
 
-	// Testing inserting, deleting a key, and inserting it again, using Delete
+	// Testing inserting, deleting a key, and inserting it again
 	err = smt.Update([]byte("testKey"), []byte("testValue"))
 	require.NoError(t, err)
 
@@ -195,7 +195,7 @@ func TestTreeKnownPath(t *testing.T) {
 	var err error
 
 	baseKey := make([]byte, ph.PathSize())
-	keys := make([][]byte, 6)
+	keys := make([][]byte, 7)
 	for i, _ := range keys {
 		keys[i] = make([]byte, ph.PathSize())
 		copy(keys[i], baseKey)
@@ -206,6 +206,7 @@ func TestTreeKnownPath(t *testing.T) {
 	keys[3][0] = byte(0b11000000)
 	keys[4][0] = byte(0b11010000)
 	keys[5][0] = byte(0b11100000)
+	keys[6][0] = byte(0b11110000)
 
 	err = smt.Update(keys[0], []byte("testValue1"))
 	require.NoError(t, err)
@@ -243,6 +244,14 @@ func TestTreeKnownPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue5"), value)
 
+	value, err = smt.GetValue(keys[5])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue6"), value)
+
+	// Fail to delete an absent key with a leaf where it would be
+	err = smt.Delete(keys[6])
+	require.Error(t, err)
+	// Key at would-be position is still accessible
 	value, err = smt.GetValue(keys[5])
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue6"), value)

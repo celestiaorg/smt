@@ -41,9 +41,12 @@ type SMT struct {
 	savedRoot []byte
 	// Current state of tree
 	tree treeNode
-	// Hashes of persisted nodes deleted from tree
-	orphans [][]byte
+	// Lists of per-operation orphan sets
+	orphans []orphanNodes
 }
+
+// Hashes of persisted nodes deleted from tree
+type orphanNodes = [][]byte
 
 func NewSMT(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
 	smt := SMT{
@@ -97,22 +100,22 @@ func (smt *SMT) Get(key []byte) ([]byte, error) {
 func (smt *SMT) Update(key []byte, value []byte) error {
 	path := smt.ph.Path(key)
 	valueHash := smt.digestValue(value)
-	var orphans []treeNode
+	var orphans orphanNodes
 	tree, err := smt.update(smt.tree, 0, path, valueHash, &orphans)
 	if err != nil {
 		return err
 	}
-	smt.orphans = append(smt.orphans, persistedNodeDigests(orphans)...)
 	smt.tree = tree
+	smt.orphans = append(smt.orphans, orphans)
 	return nil
 }
 
 func (smt *SMT) update(
-	node treeNode, depth int, path, value []byte, orphans *[]treeNode,
+	node treeNode, depth int, path, value []byte, orphans *orphanNodes,
 ) (treeNode, error) {
 	node, err := smt.resolveLazy(node)
 	if err != nil {
-		return nil, err
+		return node, err
 	}
 
 	newLeaf := &leafNode{path: path, valueHash: value}
@@ -124,7 +127,7 @@ func (smt *SMT) update(
 		// TODO (optimization) - can just count [depth:]
 		prefixlen := countCommonPrefix(path, leaf.path)
 		if prefixlen == smt.depth() { // replace leaf if paths are equal
-			*orphans = append(*orphans, node)
+			smt.addOrphan(orphans, node)
 			return newLeaf, nil
 		}
 		// We must create a "list" of single-branch inner nodes
@@ -147,9 +150,9 @@ func (smt *SMT) update(
 		return listRoot, nil
 	}
 
-	*orphans = append(*orphans, node)
+	smt.addOrphan(orphans, node)
 	var child *treeNode
-	inner := node.(*innerNode).clone()
+	inner := node.(*innerNode)
 	if getBitAtFromMSB(path, depth) == left {
 		child = &inner.leftChild
 	} else {
@@ -157,44 +160,45 @@ func (smt *SMT) update(
 	}
 	*child, err = smt.update(*child, depth+1, path, value, orphans)
 	if err != nil {
-		return nil, err
+		return node, err
 	}
+	inner.setDirty()
 	return inner, nil
 }
 
 func (smt *SMT) Delete(key []byte) error {
 	path := smt.ph.Path(key)
-	var orphans []treeNode
+	var orphans orphanNodes
 	tree, err := smt.delete(smt.tree, 0, path, &orphans)
 	if err != nil {
 		return err
 	}
-	smt.orphans = append(smt.orphans, persistedNodeDigests(orphans)...)
 	smt.tree = tree
+	smt.orphans = append(smt.orphans, orphans)
 	return nil
 }
 
-func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *[]treeNode,
+func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *orphanNodes,
 ) (treeNode, error) {
 	node, err := smt.resolveLazy(node)
 	if err != nil {
-		return nil, err
+		return node, err
 	}
 
 	if node == nil {
-		return nil, ErrKeyNotPresent
+		return node, ErrKeyNotPresent
 	}
 	if leaf, ok := node.(*leafNode); ok {
 		if !bytes.Equal(path, leaf.path) {
-			return nil, ErrKeyNotPresent
+			return node, ErrKeyNotPresent
 		}
-		*orphans = append(*orphans, node)
+		smt.addOrphan(orphans, node)
 		return nil, nil
 	}
 
-	*orphans = append(*orphans, node)
+	smt.addOrphan(orphans, node)
 	var child, sib *treeNode
-	inner := node.(*innerNode).clone()
+	inner := node.(*innerNode)
 	if getBitAtFromMSB(path, depth) == left {
 		child, sib = &inner.leftChild, &inner.rightChild
 	} else {
@@ -202,11 +206,11 @@ func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *[]treeNod
 	}
 	*child, err = smt.delete(*child, depth+1, path, orphans)
 	if err != nil {
-		return nil, err
+		return node, err
 	}
 	*sib, err = smt.resolveLazy(*sib)
 	if err != nil {
-		return nil, err
+		return node, err
 	}
 	// We can only replace this node with a leaf -
 	// Inner nodes exist at a fixed depth, and can't be moved.
@@ -220,6 +224,7 @@ func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *[]treeNod
 			return *child, nil
 		}
 	}
+	inner.setDirty()
 	return inner, nil
 }
 
@@ -330,10 +335,12 @@ func (smt *SMT) Save() (err error) {
 	if err = smt.save(smt.tree, 0); err != nil {
 		return
 	}
-	// All orphans are persisted w/ cached digests, so we don't need to check for null
-	for _, hash := range smt.orphans {
-		if err = smt.nodes.Delete(hash); err != nil {
-			return
+	// All orphans are persisted and have cached digests, so we don't need to check for null
+	for _, orphans := range smt.orphans {
+		for _, hash := range orphans {
+			if err = smt.nodes.Delete(hash); err != nil {
+				return
+			}
 		}
 	}
 	smt.orphans = nil
@@ -374,6 +381,11 @@ func (node *leafNode) CachedDigest() []byte  { return node.digest }
 func (node *innerNode) CachedDigest() []byte { return node.digest }
 func (node *lazyNode) CachedDigest() []byte  { return node.digest }
 
+func (inner *innerNode) setDirty() {
+	inner.persisted = false
+	inner.digest = nil
+}
+
 func (smt *SMT) serialize(node treeNode) (data []byte) {
 	switch n := node.(type) {
 	case *lazyNode:
@@ -408,18 +420,8 @@ func (smt *SMT) hashNode(node treeNode) []byte {
 	return *cache
 }
 
-func (inner *innerNode) clone() *innerNode {
-	return &innerNode{
-		leftChild:  inner.leftChild,
-		rightChild: inner.rightChild,
+func (smt *SMT) addOrphan(orphans *[][]byte, node treeNode) {
+	if node.Persisted() {
+		*orphans = append(*orphans, node.CachedDigest())
 	}
-}
-
-func persistedNodeDigests(nodes []treeNode) (ret [][]byte) {
-	for _, node := range nodes {
-		if node.Persisted() {
-			ret = append(ret, node.CachedDigest())
-		}
-	}
-	return
 }
