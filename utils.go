@@ -1,7 +1,7 @@
 package smt
 
-// getBitAtFromMSB gets the bit at an offset from the most significant bit
-func getBitAtFromMSB(data []byte, position int) int {
+// getPathBit gets the bit at an offset from the most significant bit
+func getPathBit(data []byte, position int) int {
 	if int(data[position/8])&(1<<(8-1-uint(position)%8)) > 0 {
 		return 1
 	}
@@ -18,7 +18,7 @@ func setBitAtFromMSB(data []byte, position int) {
 func countSetBits(data []byte) int {
 	count := 0
 	for i := 0; i < len(data)*8; i++ {
-		if getBitAtFromMSB(data, i) == 1 {
+		if getPathBit(data, i) == 1 {
 			count++
 		}
 	}
@@ -28,7 +28,7 @@ func countSetBits(data []byte) int {
 func countCommonPrefix(data1 []byte, data2 []byte) int {
 	count := 0
 	for i := 0; i < len(data1)*8; i++ {
-		if getBitAtFromMSB(data1, i) == getBitAtFromMSB(data2, i) {
+		if getPathBit(data1, i) == getPathBit(data2, i) {
 			count++
 		} else {
 			break

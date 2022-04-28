@@ -145,7 +145,7 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 		node := make([]byte, base.th.hashSize())
 		copy(node, proof.SideNodes[i])
 
-		if getBitAtFromMSB(path, len(proof.SideNodes)-1-i) == left {
+		if getPathBit(path, len(proof.SideNodes)-1-i) == left {
 			currentHash, currentData = base.th.digestNode(currentHash, node)
 		} else {
 			currentHash, currentData = base.th.digestNode(node, currentHash)
@@ -204,7 +204,7 @@ func DecompactProof(proof SparseCompactMerkleProof, base *BaseSMT) (SparseMerkle
 	decompactedSideNodes := make([][]byte, proof.NumSideNodes)
 	position := 0
 	for i := 0; i < proof.NumSideNodes; i++ {
-		if getBitAtFromMSB(proof.BitMask, i) == 1 {
+		if getPathBit(proof.BitMask, i) == 1 {
 			decompactedSideNodes[i] = base.th.placeholder()
 		} else {
 			decompactedSideNodes[i] = proof.SideNodes[position]
