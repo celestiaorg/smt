@@ -27,8 +27,8 @@ type SparseMerkleTree interface {
 	Root() []byte
 	// Prove computes a Merkle proof of membership or non-membership of a key.
 	Prove(key []byte) (SparseMerkleProof, error)
-	// Save commits the tree's state to its persistent storage.
-	Save() error
+	// Commit saves the tree's state to its persistent storage.
+	Commit() error
 
 	base() *BaseSMT
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"math/rand"
 	"testing"
-	// "github.com/stretchr/testify/require"
 )
 
 type opCounts struct{ ops, inserts, updates, deletes int }
@@ -123,7 +122,7 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 			}
 
 			ph := smt.base().ph
-			commonPrefix := countCommonPrefix(ph.Path([]byte(k)), ph.Path([]byte(k2)))
+			commonPrefix := countCommonPrefix(ph.Path([]byte(k)), ph.Path([]byte(k2)), 0)
 			if commonPrefix != smt.base().depth() && commonPrefix > largestCommonPrefix {
 				largestCommonPrefix = commonPrefix
 			}
