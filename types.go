@@ -54,3 +54,44 @@ func (smt *BaseSMT) digestValue(data []byte) []byte {
 	}
 	return smt.vh.digest(data)
 }
+
+func (smt *BaseSMT) serialize(node treeNode) (data []byte) {
+	switch n := node.(type) {
+	case *lazyNode:
+		panic("serialize(lazyNode)")
+	case *leafNode:
+		return encodeLeaf(n.path, n.valueHash)
+	case *innerNode:
+		lchild := smt.hashNode(n.leftChild)
+		rchild := smt.hashNode(n.rightChild)
+		return encodeInner(lchild, rchild)
+	case *extensionNode:
+		child := smt.hashNode(n.child)
+		return encodeExtension(n.pathBounds, n.path, child)
+	}
+	return nil
+}
+
+func (smt *BaseSMT) hashNode(node treeNode) []byte {
+	if node == nil {
+		return smt.th.placeholder()
+	}
+	var cache *[]byte
+	switch n := node.(type) {
+	case *lazyNode:
+		return n.digest
+	case *leafNode:
+		cache = &n.digest
+	case *innerNode:
+		cache = &n.digest
+	case *extensionNode:
+		if n.digest == nil {
+			n.digest = smt.hashNode(n.expand())
+		}
+		return n.digest
+	}
+	if *cache == nil {
+		*cache = smt.th.digest(smt.serialize(node))
+	}
+	return *cache
+}

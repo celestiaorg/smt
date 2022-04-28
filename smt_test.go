@@ -168,6 +168,10 @@ func TestTreeDeleteBasic(t *testing.T) {
 	err = smt.Delete([]byte("testKey"))
 	require.NoError(t, err)
 
+	// Fail to delete an absent key, but leave tree in a valid state
+	err = smt.Delete([]byte("testKey"))
+	require.Error(t, err)
+
 	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
 	require.Equal(t, defaultValue, value, "getting deleted key")
@@ -337,9 +341,9 @@ func TestOrphanRemoval(t *testing.T) {
 	// sha256(foo)      = 0010... common prefix = 2; 1 root + 2 inner + 2 leaf = 5 nodes
 	cases := []testCase{
 		{[]string{"testKey2"}, 3},
-		{[]string{"foo"}, 5},
+		{[]string{"foo"}, 4},
 		{[]string{"testKey2", "foo"}, 6},
-		{[]string{"a", "b", "c", "d", "e"}, 16},
+		{[]string{"a", "b", "c", "d", "e"}, 14},
 	}
 
 	t.Run("overwrite and delete", func(t *testing.T) {

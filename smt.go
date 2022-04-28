@@ -15,29 +15,43 @@ type treeNode interface {
 	CachedDigest() []byte
 }
 
+// A branch within the tree
 type innerNode struct {
+	// Both child nodes are always non-nil
 	leftChild, rightChild treeNode
 	persisted             bool
-	// Cached hash digest
-	digest []byte
+	digest                []byte
 }
 
+// Stores data and full path
 type leafNode struct {
 	path      []byte
 	valueHash []byte
 	persisted bool
-	// Cached hash digest
-	digest []byte
+	digest    []byte
 }
 
-// represents uncached persisted node
+// A compressed chain of singly-linked inner nodes
+type extensionNode struct {
+	path []byte
+	// Bit offsets into path slice defining actual path segment.
+	// Note: assumes path is <=256 bits
+	pathBounds [2]byte
+	// Child is always an inner node, or lazy.
+	child     treeNode
+	persisted bool
+	digest    []byte
+}
+
+// Represents an uncached, persisted node
 type lazyNode struct {
 	digest []byte
 }
 
 type SMT struct {
 	BaseSMT
-	nodes     MapStore
+	nodes MapStore
+	// Last persisted root hash
 	savedRoot []byte
 	// Current state of tree
 	tree treeNode
@@ -84,6 +98,17 @@ func (smt *SMT) Get(key []byte) ([]byte, error) {
 			}
 			break
 		}
+		if ext, ok := (*node).(*extensionNode); ok {
+			if _, match := ext.match(path, depth); !match {
+				break
+			}
+			depth += ext.length()
+			node = &ext.child
+			*node, err = smt.resolveLazy(*node)
+			if err != nil {
+				return nil, err
+			}
+		}
 		inner := (*node).(*innerNode)
 		if getBitAtFromMSB(path, depth) == left {
 			node = &inner.leftChild
@@ -106,7 +131,9 @@ func (smt *SMT) Update(key []byte, value []byte) error {
 		return err
 	}
 	smt.tree = tree
-	smt.orphans = append(smt.orphans, orphans)
+	if len(orphans) > 0 {
+		smt.orphans = append(smt.orphans, orphans)
+	}
 	return nil
 }
 
@@ -130,29 +157,40 @@ func (smt *SMT) update(
 			smt.addOrphan(orphans, node)
 			return newLeaf, nil
 		}
-		// We must create a "list" of single-branch inner nodes
-		var listRoot treeNode
-		prev := &listRoot
-		for d := depth; d < prefixlen; d++ {
-			inner := &innerNode{}
-			*prev = inner
-			if getBitAtFromMSB(path, d) == left {
-				prev = &inner.leftChild
-			} else {
-				prev = &inner.rightChild
+		// We insert an "extension" representing multiple single-branch inner nodes
+		last := &node
+		if depth < prefixlen {
+			// note: this keeps path slice alive - GC inefficiency?
+			if depth > 0xff {
+				panic("invalid depth")
 			}
+			ext := extensionNode{path: path, pathBounds: [2]byte{byte(depth), byte(prefixlen)}}
+			*last = &ext
+			last = &ext.child
 		}
 		if getBitAtFromMSB(path, prefixlen) == left {
-			*prev = &innerNode{leftChild: newLeaf, rightChild: leaf}
+			*last = &innerNode{leftChild: newLeaf, rightChild: leaf}
 		} else {
-			*prev = &innerNode{leftChild: leaf, rightChild: newLeaf}
+			*last = &innerNode{leftChild: leaf, rightChild: newLeaf}
 		}
-		return listRoot, nil
+		return node, nil
 	}
 
 	smt.addOrphan(orphans, node)
-	var child *treeNode
+
+	if ext, ok := node.(*extensionNode); ok {
+		var branch *treeNode
+		node, branch, depth = ext.split(path, depth)
+		*branch, err = smt.update(*branch, depth, path, value, orphans)
+		if err != nil {
+			return node, err
+		}
+		ext.setDirty()
+		return node, nil
+	}
+
 	inner := node.(*innerNode)
+	var child *treeNode
 	if getBitAtFromMSB(path, depth) == left {
 		child = &inner.leftChild
 	} else {
@@ -163,7 +201,7 @@ func (smt *SMT) update(
 		return node, err
 	}
 	inner.setDirty()
-	return inner, nil
+	return node, nil
 }
 
 func (smt *SMT) Delete(key []byte) error {
@@ -174,7 +212,9 @@ func (smt *SMT) Delete(key []byte) error {
 		return err
 	}
 	smt.tree = tree
-	smt.orphans = append(smt.orphans, orphans)
+	if len(orphans) > 0 {
+		smt.orphans = append(smt.orphans, orphans)
+	}
 	return nil
 }
 
@@ -197,8 +237,30 @@ func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *orphanNod
 	}
 
 	smt.addOrphan(orphans, node)
-	var child, sib *treeNode
+
+	if ext, ok := node.(*extensionNode); ok {
+		if _, match := ext.match(path, depth); !match {
+			return node, ErrKeyNotPresent
+		}
+		ext.child, err = smt.delete(ext.child, depth+ext.length(), path, orphans)
+		if err != nil {
+			return node, err
+		}
+		switch n := ext.child.(type) {
+		case *leafNode:
+			return n, nil
+		case *extensionNode:
+			// Join this extension with the child
+			smt.addOrphan(orphans, n)
+			n.pathBounds[0] = ext.pathBounds[0]
+			node = n
+		}
+		ext.setDirty()
+		return node, nil
+	}
+
 	inner := node.(*innerNode)
+	var child, sib *treeNode
 	if getBitAtFromMSB(path, depth) == left {
 		child, sib = &inner.leftChild, &inner.rightChild
 	} else {
@@ -212,20 +274,25 @@ func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *orphanNod
 	if err != nil {
 		return node, err
 	}
-	// We can only replace this node with a leaf -
-	// Inner nodes exist at a fixed depth, and can't be moved.
-	if *child == nil {
-		if _, ok := (*sib).(*leafNode); ok {
-			return *sib, nil
-		}
-	}
-	if *sib == nil {
-		if _, ok := (*child).(*leafNode); ok {
-			return *child, nil
+	// Handle replacement of this node, depending on the new child states.
+	// Note that inner nodes exist at a fixed depth, and can't be moved.
+	children := [2]*treeNode{child, sib}
+	for i := 0; i < 2; i++ {
+		if *children[i] == nil {
+			switch n := (*children[1-i]).(type) {
+			case *leafNode:
+				return n, nil
+			case *extensionNode:
+				// "Absorb" this node into the extension by prepending
+				smt.addOrphan(orphans, n)
+				n.pathBounds[0]--
+				n.setDirty()
+				return n, nil
+			}
 		}
 	}
 	inner.setDirty()
-	return inner, nil
+	return node, nil
 }
 
 func (smt *SMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
@@ -244,6 +311,22 @@ func (smt *SMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
 		}
 		if _, ok := node.(*leafNode); ok {
 			break
+		}
+		if ext, ok := node.(*extensionNode); ok {
+			length, match := ext.match(path, depth)
+			if match {
+				for i := 0; i < length; i++ {
+					siblings = append(siblings, nil)
+				}
+				depth += length
+				node = ext.child
+				node, err = smt.resolveLazy(node)
+				if err != nil {
+					return
+				}
+			} else {
+				node = ext.expand()
+			}
 		}
 		inner := node.(*innerNode)
 		if getBitAtFromMSB(path, depth) == left {
@@ -269,7 +352,7 @@ func (smt *SMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
 	var sideNodes [][]byte
 	for i, _ := range siblings {
 		var sideNode []byte
-		sibling := siblings[len(siblings)-1-i]
+		sibling := siblings[len(siblings)-i-1]
 		sideNode = smt.hashNode(sibling)
 		sideNodes = append(sideNodes, sideNode)
 	}
@@ -301,7 +384,11 @@ func (smt *SMT) resolveLazy(node treeNode) (treeNode, error) {
 	resolver := func(hash []byte) (treeNode, error) {
 		return &lazyNode{hash}, nil
 	}
-	return smt.resolve(stub.digest, resolver)
+	ret, err := smt.resolve(stub.digest, resolver)
+	if err != nil {
+		return node, err
+	}
+	return ret, nil
 }
 
 func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
@@ -318,6 +405,17 @@ func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
 		leaf.path, leaf.valueHash = parseLeaf(data, smt.ph)
 		return &leaf, nil
 	}
+	if isExtension(data) {
+		ext := extensionNode{persisted: true, digest: hash}
+		pathBounds, path, childHash := parseExtension(data, smt.ph)
+		ext.path = path
+		copy(ext.pathBounds[:], pathBounds)
+		ext.child, err = resolver(childHash)
+		if err != nil {
+			return
+		}
+		return &ext, nil
+	}
 	leftHash, rightHash := smt.th.parseNode(data)
 	inner := innerNode{persisted: true, digest: hash}
 	inner.leftChild, err = resolver(leftHash)
@@ -332,7 +430,7 @@ func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
 }
 
 func (smt *SMT) Save() (err error) {
-	if err = smt.save(smt.tree, 0); err != nil {
+	if err = smt.save(smt.tree); err != nil {
 		return
 	}
 	// All orphans are persisted and have cached digests, so we don't need to check for null
@@ -348,7 +446,7 @@ func (smt *SMT) Save() (err error) {
 	return
 }
 
-func (smt *SMT) save(node treeNode, depth int) error {
+func (smt *SMT) save(node treeNode) error {
 	if node != nil && node.Persisted() {
 		return nil
 	}
@@ -357,71 +455,149 @@ func (smt *SMT) save(node treeNode, depth int) error {
 		n.persisted = true
 	case *innerNode:
 		n.persisted = true
-		if err := smt.save(n.leftChild, depth+1); err != nil {
+		if err := smt.save(n.leftChild); err != nil {
 			return err
 		}
-		if err := smt.save(n.rightChild, depth+1); err != nil {
+		if err := smt.save(n.rightChild); err != nil {
+			return err
+		}
+	case *extensionNode:
+		n.persisted = true
+		if err := smt.save(n.child); err != nil {
 			return err
 		}
 	default:
 		return nil
 	}
-	return smt.nodes.Set(smt.hashNode(node), smt.serialize(node))
+	data := smt.serialize(node)
+	return smt.nodes.Set(smt.hashNode(node), data)
 }
 
 func (smt *SMT) Root() []byte {
 	return smt.hashNode(smt.tree)
 }
 
-func (node *leafNode) Persisted() bool  { return node.persisted }
-func (node *innerNode) Persisted() bool { return node.persisted }
-func (node *lazyNode) Persisted() bool  { return true }
+func (smt *SMT) addOrphan(orphans *[][]byte, node treeNode) {
+	if node.Persisted() {
+		*orphans = append(*orphans, node.CachedDigest())
+	}
+}
 
-func (node *leafNode) CachedDigest() []byte  { return node.digest }
-func (node *innerNode) CachedDigest() []byte { return node.digest }
-func (node *lazyNode) CachedDigest() []byte  { return node.digest }
+func (node *leafNode) Persisted() bool      { return node.persisted }
+func (node *innerNode) Persisted() bool     { return node.persisted }
+func (node *lazyNode) Persisted() bool      { return true }
+func (node *extensionNode) Persisted() bool { return node.persisted }
+
+func (node *leafNode) CachedDigest() []byte      { return node.digest }
+func (node *innerNode) CachedDigest() []byte     { return node.digest }
+func (node *lazyNode) CachedDigest() []byte      { return node.digest }
+func (node *extensionNode) CachedDigest() []byte { return node.digest }
 
 func (inner *innerNode) setDirty() {
 	inner.persisted = false
 	inner.digest = nil
 }
 
-func (smt *SMT) serialize(node treeNode) (data []byte) {
-	switch n := node.(type) {
-	case *lazyNode:
-		panic("serialize(lazyNode)")
-	case *leafNode:
-		return encodeLeaf(n.path, n.valueHash)
-	case *innerNode:
-		var lh, rh []byte
-		lh = smt.hashNode(n.leftChild)
-		rh = smt.hashNode(n.rightChild)
-		return encodeInner(lh, rh)
-	}
-	return nil
+func (ext *extensionNode) length() int { return int(ext.pathBounds[1] - ext.pathBounds[0]) }
+
+func (ext *extensionNode) setDirty() {
+	ext.persisted = false
+	ext.digest = nil
 }
 
-func (smt *SMT) hashNode(node treeNode) []byte {
-	if node == nil {
-		return smt.th.placeholder()
+// Returns length of matching prefix, and whether it's a full match
+func (ext *extensionNode) match(path []byte, depth int) (int, bool) {
+	if depth != ext.pathStart() {
+		panic("depth != path_begin")
 	}
-	var cache *[]byte
-	switch n := node.(type) {
-	case *lazyNode:
-		return n.digest
-	case *leafNode:
-		cache = &n.digest
-	case *innerNode:
-		cache = &n.digest
+	for i := ext.pathStart(); i < ext.pathEnd(); i++ {
+		if getBitAtFromMSB(ext.path, i) != getBitAtFromMSB(path, i) {
+			return i - ext.pathStart(), false
+		}
 	}
-	if *cache == nil {
-		*cache = smt.th.digest(smt.serialize(node))
-	}
-	return *cache
+	return ext.length(), true
 }
 
-func (smt *SMT) addOrphan(orphans *[][]byte, node treeNode) {
-	if node.Persisted() {
-		*orphans = append(*orphans, node.CachedDigest())
+func (ext *extensionNode) commonPrefix(path []byte) int {
+	count := 0
+	for i := ext.pathStart(); i < ext.pathEnd(); i++ {
+		if getBitAtFromMSB(ext.path, i) != getBitAtFromMSB(path, i) {
+			break
+		}
+		count++
 	}
+	return count
+}
+
+func (ext *extensionNode) pathStart() int { return int(ext.pathBounds[0]) }
+func (ext *extensionNode) pathEnd() int   { return int(ext.pathBounds[1]) }
+
+// Splits the node in-place; returns replacement node, child node at the split, and split depth
+func (ext *extensionNode) split(path []byte, depth int) (treeNode, *treeNode, int) {
+	if depth != ext.pathStart() {
+		panic("depth != path_begin")
+	}
+	index := ext.pathStart()
+	var myBit, branchBit int
+	for ; index < ext.pathEnd(); index++ {
+		myBit = getBitAtFromMSB(ext.path, index)
+		branchBit = getBitAtFromMSB(path, index)
+		if myBit != branchBit {
+			break
+		}
+	}
+	if index == ext.pathEnd() {
+		return ext, &ext.child, index
+	}
+
+	child := ext.child
+	var branch innerNode
+	var head treeNode
+	var tail *treeNode
+	if myBit == left {
+		tail = &branch.leftChild
+	} else {
+		tail = &branch.rightChild
+	}
+
+	// Split at first bit: chain starts with new node
+	if index == ext.pathStart() {
+		head = &branch
+		ext.pathBounds[0]++ // Shrink the extension from front
+		if ext.length() == 0 {
+			*tail = child
+		} else {
+			*tail = ext
+		}
+	} else {
+		// Split inside: chain ends at index
+		head = ext
+		ext.child = &branch
+		if index == ext.pathEnd()-1 {
+			*tail = child
+		} else {
+			*tail = &extensionNode{
+				path:       ext.path,
+				pathBounds: [2]byte{byte(index + 1), ext.pathBounds[1]},
+				child:      child,
+			}
+		}
+		ext.pathBounds[1] = byte(index)
+	}
+	var b treeNode = &branch
+	return head, &b, index
+}
+
+func (ext *extensionNode) expand() treeNode {
+	last := ext.child
+	for i := ext.pathEnd() - 1; i >= ext.pathStart(); i-- {
+		var next innerNode
+		if getBitAtFromMSB(ext.path, i) == left {
+			next.leftChild = last
+		} else {
+			next.rightChild = last
+		}
+		last = &next
+	}
+	return last
 }
