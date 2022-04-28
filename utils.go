@@ -49,3 +49,15 @@ func reverseByteSlices(slices [][]byte) [][]byte {
 
 	return slices
 }
+
+// Used for verification of serialized proof data
+func hashSerialization(smt *BaseSMT, data []byte) []byte {
+	if isExtension(data) {
+		pathBounds, path, childHash := parseExtension(data, smt.ph)
+		ext := extensionNode{path: path, child: &lazyNode{childHash}}
+		copy(ext.pathBounds[:], pathBounds)
+		return smt.hashNode(&ext)
+	} else {
+		return smt.th.digest(data)
+	}
+}

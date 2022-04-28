@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	leafPrefix = []byte{0}
-	nodePrefix = []byte{1}
+	leafPrefix  = []byte{0}
+	innerPrefix = []byte{1}
+	extPrefix   = []byte{2}
 )
 
 var _ PathHasher = (*pathHasher)(nil)
@@ -62,7 +63,7 @@ func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []b
 }
 
 func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
-	return data[len(nodePrefix) : th.hashSize()+len(nodePrefix)], data[len(nodePrefix)+th.hashSize():]
+	return data[len(innerPrefix) : th.hashSize()+len(innerPrefix)], data[len(innerPrefix)+th.hashSize():]
 }
 
 func (th *treeHasher) hashSize() int {
@@ -77,8 +78,18 @@ func isLeaf(data []byte) bool {
 	return bytes.Equal(data[:len(leafPrefix)], leafPrefix)
 }
 
+func isExtension(data []byte) bool {
+	return bytes.Equal(data[:len(extPrefix)], extPrefix)
+}
+
 func parseLeaf(data []byte, ph PathHasher) ([]byte, []byte) {
 	return data[len(leafPrefix) : ph.PathSize()+len(leafPrefix)], data[len(leafPrefix)+ph.PathSize():]
+}
+
+func parseExtension(data []byte, ph PathHasher) (pathBounds, path, childData []byte) {
+	return data[len(extPrefix) : len(extPrefix)+2],
+		data[len(extPrefix)+2 : len(extPrefix)+2+ph.PathSize()],
+		data[len(extPrefix)+2+ph.PathSize():]
 }
 
 func encodeLeaf(path []byte, leafData []byte) []byte {
@@ -90,9 +101,18 @@ func encodeLeaf(path []byte, leafData []byte) []byte {
 }
 
 func encodeInner(leftData []byte, rightData []byte) []byte {
-	value := make([]byte, 0, len(nodePrefix)+len(leftData)+len(rightData))
-	value = append(value, nodePrefix...)
+	value := make([]byte, 0, len(innerPrefix)+len(leftData)+len(rightData))
+	value = append(value, innerPrefix...)
 	value = append(value, leftData...)
 	value = append(value, rightData...)
+	return value
+}
+
+func encodeExtension(pathBounds [2]byte, path []byte, childData []byte) []byte {
+	value := make([]byte, 0, len(extPrefix)+len(path)+2+len(childData))
+	value = append(value, extPrefix...)
+	value = append(value, pathBounds[:]...)
+	value = append(value, path...)
+	value = append(value, childData...)
 	return value
 }

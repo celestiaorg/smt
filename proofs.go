@@ -49,7 +49,7 @@ func (proof *SparseMerkleProof) sanityCheck(base *BaseSMT) bool {
 		return true
 	}
 
-	siblingHash := base.th.digest(proof.SiblingData)
+	siblingHash := hashSerialization(base, proof.SiblingData)
 	return bytes.Equal(proof.SideNodes[0], siblingHash)
 }
 
