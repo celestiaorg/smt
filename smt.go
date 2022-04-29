@@ -429,8 +429,8 @@ func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
 	return &inner, nil
 }
 
-func (smt *SMT) Save() (err error) {
-	if err = smt.save(smt.tree); err != nil {
+func (smt *SMT) Commit() (err error) {
+	if err = smt.commit(smt.tree); err != nil {
 		return
 	}
 	// All orphans are persisted and have cached digests, so we don't need to check for null
@@ -446,7 +446,7 @@ func (smt *SMT) Save() (err error) {
 	return
 }
 
-func (smt *SMT) save(node treeNode) error {
+func (smt *SMT) commit(node treeNode) error {
 	if node != nil && node.Persisted() {
 		return nil
 	}
@@ -455,15 +455,15 @@ func (smt *SMT) save(node treeNode) error {
 		n.persisted = true
 	case *innerNode:
 		n.persisted = true
-		if err := smt.save(n.leftChild); err != nil {
+		if err := smt.commit(n.leftChild); err != nil {
 			return err
 		}
-		if err := smt.save(n.rightChild); err != nil {
+		if err := smt.commit(n.rightChild); err != nil {
 			return err
 		}
 	case *extensionNode:
 		n.persisted = true
-		if err := smt.save(n.child); err != nil {
+		if err := smt.commit(n.child); err != nil {
 			return err
 		}
 	default:

@@ -74,7 +74,7 @@ func TestTreeUpdateBasic(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("testValue2"), value)
 
-	require.NoError(t, lazy.Save())
+	require.NoError(t, lazy.Commit())
 
 	// Test that a tree can be imported from a MapStore.
 	lazy = ImportSMT(smn, sha256.New(), smt.Root())
@@ -305,7 +305,7 @@ func TestOrphanRemoval(t *testing.T) {
 	var err error
 
 	nodeCount := func(t *testing.T) int {
-		require.NoError(t, impl.Save())
+		require.NoError(t, impl.Commit())
 		return len(smn.m)
 	}
 	setup := func() {
