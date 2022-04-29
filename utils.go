@@ -8,8 +8,8 @@ func getPathBit(data []byte, position int) int {
 	return 0
 }
 
-// setBitAtFromMSB sets the bit at an offset from the most significant bit
-func setBitAtFromMSB(data []byte, position int) {
+// setPathBit sets the bit at an offset from the most significant bit
+func setPathBit(data []byte, position int) {
 	n := int(data[position/8])
 	n |= 1 << (8 - 1 - uint(position)%8)
 	data[position/8] = byte(n)
@@ -34,20 +34,6 @@ func countCommonPrefix(data1 []byte, data2 []byte) int {
 			break
 		}
 	}
-	return count
-}
-
-func emptyBytes(length int) []byte {
-	b := make([]byte, length)
-	return b
-}
-
-func reverseByteSlices(slices [][]byte) [][]byte {
-	for left, right := 0, len(slices)-1; left < right; left, right = left+1, right-1 {
-		slices[left], slices[right] = slices[right], slices[left]
-	}
-
-	return slices
 }
 
 // Used for verification of serialized proof data

@@ -174,13 +174,13 @@ func CompactProof(proof SparseMerkleProof, base *BaseSMT) (SparseCompactMerklePr
 		return SparseCompactMerkleProof{}, ErrBadProof
 	}
 
-	bitMask := emptyBytes(int(math.Ceil(float64(len(proof.SideNodes)) / float64(8))))
+	bitMask := make([]byte, int(math.Ceil(float64(len(proof.SideNodes))/float64(8))))
 	var compactedSideNodes [][]byte
 	for i := 0; i < len(proof.SideNodes); i++ {
 		node := make([]byte, base.th.hashSize())
 		copy(node, proof.SideNodes[i])
 		if bytes.Equal(node, base.th.placeholder()) {
-			setBitAtFromMSB(bitMask, i)
+			setPathBit(bitMask, i)
 		} else {
 			compactedSideNodes = append(compactedSideNodes, node)
 		}
