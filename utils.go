@@ -25,15 +25,17 @@ func countSetBits(data []byte) int {
 	return count
 }
 
-func countCommonPrefix(data1 []byte, data2 []byte) int {
+// counts common bits in each path, starting from some position
+func countCommonPrefix(data1, data2 []byte, from int) int {
 	count := 0
-	for i := 0; i < len(data1)*8; i++ {
+	for i := from; i < len(data1)*8; i++ {
 		if getPathBit(data1, i) == getPathBit(data2, i) {
 			count++
 		} else {
 			break
 		}
 	}
+	return count + from
 }
 
 // Used for verification of serialized proof data

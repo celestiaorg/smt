@@ -151,8 +151,7 @@ func (smt *SMT) update(
 		return newLeaf, nil
 	}
 	if leaf, ok := node.(*leafNode); ok {
-		// TODO (optimization) - can just count [depth:]
-		prefixlen := countCommonPrefix(path, leaf.path)
+		prefixlen := countCommonPrefix(path, leaf.path, depth)
 		if prefixlen == smt.depth() { // replace leaf if paths are equal
 			smt.addOrphan(orphans, node)
 			return newLeaf, nil
