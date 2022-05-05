@@ -97,7 +97,8 @@ func TestTreeUpdateBasic(t *testing.T) {
 // Test base case tree delete operations with a few keys.
 func TestTreeDeleteBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSMTWithStorage(smn, smv, sha256.New())
+	lazy := NewSMT(smn, sha256.New())
+	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
 	rootEmpty := smt.Root()
 
 	// Testing inserting, deleting a key, and inserting it again.
@@ -364,18 +365,23 @@ func TestOrphanRemoval(t *testing.T) {
 			}
 			require.Equal(t, tc.count, nodeCount(t), tci)
 
-			// overwrite
+			// Overwrite doesn't change count
 			for _, key := range tc.keys {
 				err = smt.Update([]byte(key), []byte("testValue3"))
 				require.NoError(t, err, tci)
 			}
 			require.Equal(t, tc.count, nodeCount(t), tci)
 
-			// deletion removes all branches
+			// Deletion removes all nodes except root
 			for _, key := range tc.keys {
 				err = smt.Delete([]byte(key))
 				require.NoError(t, err, tci)
 			}
+			require.Equal(t, 1, nodeCount(t), tci)
+
+			// Deleting and re-inserting a persisted node doesn't change count
+			require.NoError(t, smt.Delete([]byte("testKey")))
+			require.NoError(t, smt.Update([]byte("testKey"), []byte("testValue")))
 			require.Equal(t, 1, nodeCount(t), tci)
 		}
 	})

@@ -429,9 +429,6 @@ func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
 }
 
 func (smt *SMT) Commit() (err error) {
-	if err = smt.commit(smt.tree); err != nil {
-		return
-	}
 	// All orphans are persisted and have cached digests, so we don't need to check for null
 	for _, orphans := range smt.orphans {
 		for _, hash := range orphans {
@@ -441,6 +438,9 @@ func (smt *SMT) Commit() (err error) {
 		}
 	}
 	smt.orphans = nil
+	if err = smt.commit(smt.tree); err != nil {
+		return
+	}
 	smt.savedRoot = smt.Root()
 	return
 }
