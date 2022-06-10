@@ -1,457 +1,602 @@
-// Package smt implements a Sparse Merkle tree.
 package smt
 
 import (
 	"bytes"
-	"errors"
 	"hash"
 )
 
-const (
-	right = 1
+var (
+	_ treeNode = (*innerNode)(nil)
+	_ treeNode = (*leafNode)(nil)
 )
 
-var defaultValue = []byte{}
-
-var errKeyAlreadyEmpty = errors.New("key already empty")
-
-// SparseMerkleTree is a Sparse Merkle tree.
-type SparseMerkleTree struct {
-	th            treeHasher
-	nodes, values MapStore
-	root          []byte
+type treeNode interface {
+	Persisted() bool
+	CachedDigest() []byte
 }
 
-// NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
-func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Option) *SparseMerkleTree {
-	smt := SparseMerkleTree{
-		th:     *newTreeHasher(hasher),
-		nodes:  nodes,
-		values: values,
-	}
+// A branch within the tree
+type innerNode struct {
+	// Both child nodes are always non-nil
+	leftChild, rightChild treeNode
+	persisted             bool
+	digest                []byte
+}
 
+// Stores data and full path
+type leafNode struct {
+	path      []byte
+	valueHash []byte
+	persisted bool
+	digest    []byte
+}
+
+// A compressed chain of singly-linked inner nodes
+type extensionNode struct {
+	path []byte
+	// Bit offsets into path slice defining actual path segment.
+	// Note: assumes path is <=256 bits
+	pathBounds [2]byte
+	// Child is always an inner node, or lazy.
+	child     treeNode
+	persisted bool
+	digest    []byte
+}
+
+// Represents an uncached, persisted node
+type lazyNode struct {
+	digest []byte
+}
+
+type SMT struct {
+	BaseSMT
+	nodes MapStore
+	// Last persisted root hash
+	savedRoot []byte
+	// Current state of tree
+	tree treeNode
+	// Lists of per-operation orphan sets
+	orphans []orphanNodes
+}
+
+// Hashes of persisted nodes deleted from tree
+type orphanNodes = [][]byte
+
+func NewSMT(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
+	smt := SMT{
+		BaseSMT: newBaseSMT(hasher),
+		nodes:   nodes,
+	}
 	for _, option := range options {
 		option(&smt)
 	}
-
-	smt.SetRoot(smt.th.placeholder())
-
 	return &smt
 }
 
-// ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
-func ImportSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
-	smt := SparseMerkleTree{
-		th:     *newTreeHasher(hasher),
-		nodes:  nodes,
-		values: values,
-		root:   root,
-	}
-	return &smt
+func ImportSMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *SMT {
+	smt := NewSMT(nodes, hasher, options...)
+	smt.tree = &lazyNode{root}
+	smt.savedRoot = root
+	return smt
 }
 
-// Root gets the root of the tree.
-func (smt *SparseMerkleTree) Root() []byte {
-	return smt.root
-}
-
-// SetRoot sets the root of the tree.
-func (smt *SparseMerkleTree) SetRoot(root []byte) {
-	smt.root = root
-}
-
-func (smt *SparseMerkleTree) depth() int {
-	return smt.th.pathSize() * 8
-}
-
-// Get gets the value of a key from the tree.
-func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
-	// Get tree's root
-	root := smt.Root()
-
-	if bytes.Equal(root, smt.th.placeholder()) {
-		// The tree is empty, return the default value.
-		return defaultValue, nil
-	}
-
-	path := smt.th.path(key)
-	value, err := smt.values.Get(path)
-
-	if err != nil {
-		var invalidKeyError *InvalidKeyError
-
-		if errors.As(err, &invalidKeyError) {
-			// If key isn't found, return default value
-			return defaultValue, nil
-		} else {
-			// Otherwise percolate up any other error
+func (smt *SMT) Get(key []byte) ([]byte, error) {
+	path := smt.ph.Path(key)
+	var leaf *leafNode
+	var err error
+	for node, depth := &smt.tree, 0; ; depth++ {
+		*node, err = smt.resolveLazy(*node)
+		if err != nil {
 			return nil, err
 		}
-	}
-	return value, nil
-}
-
-// Has returns true if the value at the given key is non-default, false
-// otherwise.
-func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
-	val, err := smt.Get(key)
-	return !bytes.Equal(defaultValue, val), err
-}
-
-// Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
-func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
-	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
-	if err != nil {
-		return nil, err
-	}
-	smt.SetRoot(newRoot)
-	return newRoot, nil
-}
-
-// Delete deletes a value from tree. It returns the new root of the tree.
-func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
-	return smt.Update(key, defaultValue)
-}
-
-// UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
-func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
-	path := smt.th.path(key)
-	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, root, false)
-	if err != nil {
-		return nil, err
-	}
-
-	var newRoot []byte
-	if bytes.Equal(value, defaultValue) {
-		// Delete operation.
-		newRoot, err = smt.deleteWithSideNodes(path, sideNodes, pathNodes, oldLeafData)
-		if errors.Is(err, errKeyAlreadyEmpty) {
-			// This key is already empty; return the old root.
-			return root, nil
+		if *node == nil {
+			break
 		}
-		if err := smt.values.Delete(path); err != nil {
-			return nil, err
+		if n, ok := (*node).(*leafNode); ok {
+			if bytes.Equal(path, n.path) {
+				leaf = n
+			}
+			break
 		}
-
-	} else {
-		// Insert or update operation.
-		newRoot, err = smt.updateWithSideNodes(path, value, sideNodes, pathNodes, oldLeafData)
-	}
-	return newRoot, err
-}
-
-// DeleteForRoot deletes a value from tree at a specific root. It returns the new root of the tree.
-func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
-	return smt.UpdateForRoot(key, defaultValue, root)
-}
-
-func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
-	if bytes.Equal(pathNodes[0], smt.th.placeholder()) {
-		// This key is already empty as it is a placeholder; return an error.
-		return nil, errKeyAlreadyEmpty
-	}
-	actualPath, _ := smt.th.parseLeaf(oldLeafData)
-	if !bytes.Equal(path, actualPath) {
-		// This key is already empty as a different key was found its place; return an error.
-		return nil, errKeyAlreadyEmpty
-	}
-	// All nodes above the deleted leaf are now orphaned
-	for _, node := range pathNodes {
-		if err := smt.nodes.Delete(node); err != nil {
-			return nil, err
-		}
-	}
-
-	var currentHash, currentData []byte
-	nonPlaceholderReached := false
-	for i, sideNode := range sideNodes {
-		if currentData == nil {
-			sideNodeValue, err := smt.nodes.Get(sideNode)
+		if ext, ok := (*node).(*extensionNode); ok {
+			if _, match := ext.match(path, depth); !match {
+				break
+			}
+			depth += ext.length()
+			node = &ext.child
+			*node, err = smt.resolveLazy(*node)
 			if err != nil {
 				return nil, err
 			}
-
-			if smt.th.isLeaf(sideNodeValue) {
-				// This is the leaf sibling that needs to be bubbled up the tree.
-				currentHash = sideNode
-				currentData = sideNode
-				continue
-			} else {
-				// This is the node sibling that needs to be left in its place.
-				currentData = smt.th.placeholder()
-				nonPlaceholderReached = true
-			}
 		}
-
-		if !nonPlaceholderReached && bytes.Equal(sideNode, smt.th.placeholder()) {
-			// We found another placeholder sibling node, keep going up the
-			// tree until we find the first sibling that is not a placeholder.
-			continue
-		} else if !nonPlaceholderReached {
-			// We found the first sibling node that is not a placeholder, it is
-			// time to insert our leaf sibling node here.
-			nonPlaceholderReached = true
-		}
-
-		if getBitAtFromMSB(path, len(sideNodes)-1-i) == right {
-			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
+		inner := (*node).(*innerNode)
+		if getPathBit(path, depth) == left {
+			node = &inner.leftChild
 		} else {
-			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
+			node = &inner.rightChild
 		}
-		if err := smt.nodes.Set(currentHash, currentData); err != nil {
-			return nil, err
-		}
-		currentData = currentHash
 	}
-
-	if currentHash == nil {
-		// The tree is empty; return placeholder value as root.
-		currentHash = smt.th.placeholder()
+	if leaf == nil {
+		return defaultValue, nil
 	}
-	return currentHash, nil
+	return leaf.valueHash, nil
 }
 
-func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
-	valueHash := smt.th.digest(value)
-	currentHash, currentData := smt.th.digestLeaf(path, valueHash)
-	if err := smt.nodes.Set(currentHash, currentData); err != nil {
-		return nil, err
+func (smt *SMT) Update(key []byte, value []byte) error {
+	path := smt.ph.Path(key)
+	valueHash := smt.digestValue(value)
+	var orphans orphanNodes
+	tree, err := smt.update(smt.tree, 0, path, valueHash, &orphans)
+	if err != nil {
+		return err
 	}
-	currentData = currentHash
+	smt.tree = tree
+	if len(orphans) > 0 {
+		smt.orphans = append(smt.orphans, orphans)
+	}
+	return nil
+}
 
-	// If the leaf node that sibling nodes lead to has a different actual path
-	// than the leaf node being updated, we need to create an intermediate node
-	// with this leaf node and the new leaf node as children.
-	//
-	// First, get the number of bits that the paths of the two leaf nodes share
-	// in common as a prefix.
-	var commonPrefixCount int
-	var oldValueHash []byte
-	if bytes.Equal(pathNodes[0], smt.th.placeholder()) {
-		commonPrefixCount = smt.depth()
+func (smt *SMT) update(
+	node treeNode, depth int, path, value []byte, orphans *orphanNodes,
+) (treeNode, error) {
+	node, err := smt.resolveLazy(node)
+	if err != nil {
+		return node, err
+	}
+
+	newLeaf := &leafNode{path: path, valueHash: value}
+	// Empty subtree is always replaced by a single leaf
+	if node == nil {
+		return newLeaf, nil
+	}
+	if leaf, ok := node.(*leafNode); ok {
+		prefixlen := countCommonPrefix(path, leaf.path, depth)
+		if prefixlen == smt.depth() { // replace leaf if paths are equal
+			smt.addOrphan(orphans, node)
+			return newLeaf, nil
+		}
+		// We insert an "extension" representing multiple single-branch inner nodes
+		last := &node
+		if depth < prefixlen {
+			// note: this keeps path slice alive - GC inefficiency?
+			if depth > 0xff {
+				panic("invalid depth")
+			}
+			ext := extensionNode{path: path, pathBounds: [2]byte{byte(depth), byte(prefixlen)}}
+			*last = &ext
+			last = &ext.child
+		}
+		if getPathBit(path, prefixlen) == left {
+			*last = &innerNode{leftChild: newLeaf, rightChild: leaf}
+		} else {
+			*last = &innerNode{leftChild: leaf, rightChild: newLeaf}
+		}
+		return node, nil
+	}
+
+	smt.addOrphan(orphans, node)
+
+	if ext, ok := node.(*extensionNode); ok {
+		var branch *treeNode
+		node, branch, depth = ext.split(path, depth)
+		*branch, err = smt.update(*branch, depth, path, value, orphans)
+		if err != nil {
+			return node, err
+		}
+		ext.setDirty()
+		return node, nil
+	}
+
+	inner := node.(*innerNode)
+	var child *treeNode
+	if getPathBit(path, depth) == left {
+		child = &inner.leftChild
 	} else {
-		var actualPath []byte
-		actualPath, oldValueHash = smt.th.parseLeaf(oldLeafData)
-		commonPrefixCount = countCommonPrefix(path, actualPath)
+		child = &inner.rightChild
 	}
-	if commonPrefixCount != smt.depth() {
-		if getBitAtFromMSB(path, commonPrefixCount) == right {
-			currentHash, currentData = smt.th.digestNode(pathNodes[0], currentData)
-		} else {
-			currentHash, currentData = smt.th.digestNode(currentData, pathNodes[0])
-		}
+	*child, err = smt.update(*child, depth+1, path, value, orphans)
+	if err != nil {
+		return node, err
+	}
+	inner.setDirty()
+	return node, nil
+}
 
-		err := smt.nodes.Set(currentHash, currentData)
+func (smt *SMT) Delete(key []byte) error {
+	path := smt.ph.Path(key)
+	var orphans orphanNodes
+	tree, err := smt.delete(smt.tree, 0, path, &orphans)
+	if err != nil {
+		return err
+	}
+	smt.tree = tree
+	if len(orphans) > 0 {
+		smt.orphans = append(smt.orphans, orphans)
+	}
+	return nil
+}
+
+func (smt *SMT) delete(node treeNode, depth int, path []byte, orphans *orphanNodes,
+) (treeNode, error) {
+	node, err := smt.resolveLazy(node)
+	if err != nil {
+		return node, err
+	}
+
+	if node == nil {
+		return node, ErrKeyNotPresent
+	}
+	if leaf, ok := node.(*leafNode); ok {
+		if !bytes.Equal(path, leaf.path) {
+			return node, ErrKeyNotPresent
+		}
+		smt.addOrphan(orphans, node)
+		return nil, nil
+	}
+
+	smt.addOrphan(orphans, node)
+
+	if ext, ok := node.(*extensionNode); ok {
+		if _, match := ext.match(path, depth); !match {
+			return node, ErrKeyNotPresent
+		}
+		ext.child, err = smt.delete(ext.child, depth+ext.length(), path, orphans)
 		if err != nil {
-			return nil, err
+			return node, err
 		}
-
-		currentData = currentHash
-	} else if oldValueHash != nil {
-		// Short-circuit if the same value is being set
-		if bytes.Equal(oldValueHash, valueHash) {
-			return smt.root, nil
+		switch n := ext.child.(type) {
+		case *leafNode:
+			return n, nil
+		case *extensionNode:
+			// Join this extension with the child
+			smt.addOrphan(orphans, n)
+			n.pathBounds[0] = ext.pathBounds[0]
+			node = n
 		}
-		// If an old leaf exists, remove it
-		if err := smt.nodes.Delete(pathNodes[0]); err != nil {
-			return nil, err
-		}
-		if err := smt.values.Delete(path); err != nil {
-			return nil, err
-		}
-	}
-	// All remaining path nodes are orphaned
-	for i := 1; i < len(pathNodes); i++ {
-		if err := smt.nodes.Delete(pathNodes[i]); err != nil {
-			return nil, err
-		}
+		ext.setDirty()
+		return node, nil
 	}
 
-	// The offset from the bottom of the tree to the start of the side nodes.
-	// Note: i-offsetOfSideNodes is the index into sideNodes[]
-	offsetOfSideNodes := smt.depth() - len(sideNodes)
-
-	for i := 0; i < smt.depth(); i++ {
-		var sideNode []byte
-
-		if i-offsetOfSideNodes < 0 || sideNodes[i-offsetOfSideNodes] == nil {
-			if commonPrefixCount != smt.depth() && commonPrefixCount > smt.depth()-1-i {
-				// If there are no sidenodes at this height, but the number of
-				// bits that the paths of the two leaf nodes share in common is
-				// greater than this depth, then we need to build up the tree
-				// to this depth with placeholder values at siblings.
-				sideNode = smt.th.placeholder()
-			} else {
-				continue
+	inner := node.(*innerNode)
+	var child, sib *treeNode
+	if getPathBit(path, depth) == left {
+		child, sib = &inner.leftChild, &inner.rightChild
+	} else {
+		child, sib = &inner.rightChild, &inner.leftChild
+	}
+	*child, err = smt.delete(*child, depth+1, path, orphans)
+	if err != nil {
+		return node, err
+	}
+	*sib, err = smt.resolveLazy(*sib)
+	if err != nil {
+		return node, err
+	}
+	// Handle replacement of this node, depending on the new child states.
+	// Note that inner nodes exist at a fixed depth, and can't be moved.
+	children := [2]*treeNode{child, sib}
+	for i := 0; i < 2; i++ {
+		if *children[i] == nil {
+			switch n := (*children[1-i]).(type) {
+			case *leafNode:
+				return n, nil
+			case *extensionNode:
+				// "Absorb" this node into the extension by prepending
+				smt.addOrphan(orphans, n)
+				n.pathBounds[0]--
+				n.setDirty()
+				return n, nil
 			}
-		} else {
-			sideNode = sideNodes[i-offsetOfSideNodes]
 		}
-
-		if getBitAtFromMSB(path, smt.depth()-1-i) == right {
-			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
-		} else {
-			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
-		}
-		err := smt.nodes.Set(currentHash, currentData)
-		if err != nil {
-			return nil, err
-		}
-		currentData = currentHash
 	}
-	if err := smt.values.Set(path, value); err != nil {
-		return nil, err
-	}
-
-	return currentHash, nil
+	inner.setDirty()
+	return node, nil
 }
 
-// Get all the sibling nodes (sidenodes) for a given path from a given root.
-// Returns an array of sibling nodes, the leaf hash found at that path, the
-// leaf data, and the sibling data.
-//
-// If the leaf is a placeholder, the leaf data is nil.
-func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSiblingData bool) ([][]byte, [][]byte, []byte, []byte, error) {
-	// Side nodes for the path. Nodes are inserted in reverse order, then the
-	// slice is reversed at the end.
-	sideNodes := make([][]byte, 0, smt.depth())
-	pathNodes := make([][]byte, 0, smt.depth()+1)
-	pathNodes = append(pathNodes, root)
+func (smt *SMT) Prove(key []byte) (proof SparseMerkleProof, err error) {
+	path := smt.ph.Path(key)
+	var siblings []treeNode
+	var sib treeNode
 
-	if bytes.Equal(root, smt.th.placeholder()) {
-		// If the root is a placeholder, there are no sidenodes to return.
-		// Let the "actual path" be the input path.
-		return sideNodes, pathNodes, nil, nil, nil
-	}
-
-	currentData, err := smt.nodes.Get(root)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	} else if smt.th.isLeaf(currentData) {
-		// If the root is a leaf, there are also no sidenodes to return.
-		return sideNodes, pathNodes, currentData, nil, nil
-	}
-
-	var nodeHash []byte
-	var sideNode []byte
-	var siblingData []byte
-	for i := 0; i < smt.depth(); i++ {
-		leftNode, rightNode := smt.th.parseNode(currentData)
-
-		// Get sidenode depending on whether the path bit is on or off.
-		if getBitAtFromMSB(path, i) == right {
-			sideNode = leftNode
-			nodeHash = rightNode
-		} else {
-			sideNode = rightNode
-			nodeHash = leftNode
+	node := smt.tree
+	for depth := 0; depth < smt.depth(); depth++ {
+		node, err = smt.resolveLazy(node)
+		if err != nil {
+			return
 		}
-		sideNodes = append(sideNodes, sideNode)
-		pathNodes = append(pathNodes, nodeHash)
-
-		if bytes.Equal(nodeHash, smt.th.placeholder()) {
-			// If the node is a placeholder, we've reached the end.
-			currentData = nil
+		if node == nil {
 			break
 		}
-
-		currentData, err = smt.nodes.Get(nodeHash)
-		if err != nil {
-			return nil, nil, nil, nil, err
-		} else if smt.th.isLeaf(currentData) {
-			// If the node is a leaf, we've reached the end.
+		if _, ok := node.(*leafNode); ok {
 			break
 		}
-	}
-
-	if getSiblingData {
-		siblingData, err = smt.nodes.Get(sideNode)
-		if err != nil {
-			return nil, nil, nil, nil, err
+		if ext, ok := node.(*extensionNode); ok {
+			length, match := ext.match(path, depth)
+			if match {
+				for i := 0; i < length; i++ {
+					siblings = append(siblings, nil)
+				}
+				depth += length
+				node = ext.child
+				node, err = smt.resolveLazy(node)
+				if err != nil {
+					return
+				}
+			} else {
+				node = ext.expand()
+			}
 		}
-	}
-	return reverseByteSlices(sideNodes), reverseByteSlices(pathNodes), currentData, siblingData, nil
-}
-
-// Prove generates a Merkle proof for a key against the current root.
-//
-// This proof can be used for read-only applications, but should not be used if
-// the leaf may be updated (e.g. in a state transition fraud proof). For
-// updatable proofs, see ProveUpdatable.
-func (smt *SparseMerkleTree) Prove(key []byte) (SparseMerkleProof, error) {
-	proof, err := smt.ProveForRoot(key, smt.Root())
-	return proof, err
-}
-
-// ProveForRoot generates a Merkle proof for a key, against a specific node.
-// This is primarily useful for generating Merkle proofs for subtrees.
-//
-// This proof can be used for read-only applications, but should not be used if
-// the leaf may be updated (e.g. in a state transition fraud proof). For
-// updatable proofs, see ProveUpdatableForRoot.
-func (smt *SparseMerkleTree) ProveForRoot(key []byte, root []byte) (SparseMerkleProof, error) {
-	return smt.doProveForRoot(key, root, false)
-}
-
-// ProveUpdatable generates an updatable Merkle proof for a key against the current root.
-func (smt *SparseMerkleTree) ProveUpdatable(key []byte) (SparseMerkleProof, error) {
-	proof, err := smt.ProveUpdatableForRoot(key, smt.Root())
-	return proof, err
-}
-
-// ProveUpdatableForRoot generates an updatable Merkle proof for a key, against a specific node.
-// This is primarily useful for generating Merkle proofs for subtrees.
-func (smt *SparseMerkleTree) ProveUpdatableForRoot(key []byte, root []byte) (SparseMerkleProof, error) {
-	return smt.doProveForRoot(key, root, true)
-}
-
-func (smt *SparseMerkleTree) doProveForRoot(key []byte, root []byte, isUpdatable bool) (SparseMerkleProof, error) {
-	path := smt.th.path(key)
-	sideNodes, pathNodes, leafData, siblingData, err := smt.sideNodesForRoot(path, root, isUpdatable)
-	if err != nil {
-		return SparseMerkleProof{}, err
-	}
-
-	var nonEmptySideNodes [][]byte
-	for _, v := range sideNodes {
-		if v != nil {
-			nonEmptySideNodes = append(nonEmptySideNodes, v)
+		inner := node.(*innerNode)
+		if getPathBit(path, depth) == left {
+			node, sib = inner.leftChild, inner.rightChild
+		} else {
+			node, sib = inner.rightChild, inner.leftChild
 		}
+		siblings = append(siblings, sib)
 	}
 
-	// Deal with non-membership proofs. If the leaf hash is the placeholder
-	// value, we do not need to add anything else to the proof.
-	var nonMembershipLeafData []byte
-	if !bytes.Equal(pathNodes[0], smt.th.placeholder()) {
-		actualPath, _ := smt.th.parseLeaf(leafData)
-		if !bytes.Equal(actualPath, path) {
+	// Deal with non-membership proofs. If there is no leaf on this path,
+	// we do not need to add anything else to the proof.
+	var leafData []byte
+	if node != nil {
+		leaf := node.(*leafNode)
+		if !bytes.Equal(leaf.path, path) {
 			// This is a non-membership proof that involves showing a different leaf.
 			// Add the leaf data to the proof.
-			nonMembershipLeafData = leafData
+			leafData = encodeLeaf(leaf.path, leaf.valueHash)
 		}
 	}
-
-	proof := SparseMerkleProof{
-		SideNodes:             nonEmptySideNodes,
-		NonMembershipLeafData: nonMembershipLeafData,
-		SiblingData:           siblingData,
+	// Hash siblings from bottom up.
+	var sideNodes [][]byte
+	for i, _ := range siblings {
+		var sideNode []byte
+		sibling := siblings[len(siblings)-i-1]
+		sideNode = smt.hashNode(sibling)
+		sideNodes = append(sideNodes, sideNode)
 	}
 
-	return proof, err
+	proof = SparseMerkleProof{
+		SideNodes:             sideNodes,
+		NonMembershipLeafData: leafData,
+	}
+	if sib != nil {
+		sib, err = smt.resolveLazy(sib)
+		if err != nil {
+			return
+		}
+		proof.SiblingData = smt.serialize(sib)
+	}
+	return
 }
 
-// ProveCompact generates a compacted Merkle proof for a key against the current root.
-func (smt *SparseMerkleTree) ProveCompact(key []byte) (SparseCompactMerkleProof, error) {
-	proof, err := smt.ProveCompactForRoot(key, smt.Root())
-	return proof, err
+func (smt *SMT) recursiveLoad(hash []byte) (treeNode, error) {
+	return smt.resolve(hash, smt.recursiveLoad)
 }
 
-// ProveCompactForRoot generates a compacted Merkle proof for a key, at a specific root.
-func (smt *SparseMerkleTree) ProveCompactForRoot(key []byte, root []byte) (SparseCompactMerkleProof, error) {
-	proof, err := smt.ProveForRoot(key, root)
+// resolves a stub into a cached node
+func (smt *SMT) resolveLazy(node treeNode) (treeNode, error) {
+	stub, ok := node.(*lazyNode)
+	if !ok {
+		return node, nil
+	}
+	resolver := func(hash []byte) (treeNode, error) {
+		return &lazyNode{hash}, nil
+	}
+	ret, err := smt.resolve(stub.digest, resolver)
 	if err != nil {
-		return SparseCompactMerkleProof{}, err
+		return node, err
 	}
-	compactedProof, err := CompactProof(proof, smt.th.hasher)
-	return compactedProof, err
+	return ret, nil
+}
+
+func (smt *SMT) resolve(hash []byte, resolver func([]byte) (treeNode, error),
+) (ret treeNode, err error) {
+	if bytes.Equal(smt.th.placeholder(), hash) {
+		return
+	}
+	data, err := smt.nodes.Get(hash)
+	if err != nil {
+		return
+	}
+	if isLeaf(data) {
+		leaf := leafNode{persisted: true, digest: hash}
+		leaf.path, leaf.valueHash = parseLeaf(data, smt.ph)
+		return &leaf, nil
+	}
+	if isExtension(data) {
+		ext := extensionNode{persisted: true, digest: hash}
+		pathBounds, path, childHash := parseExtension(data, smt.ph)
+		ext.path = path
+		copy(ext.pathBounds[:], pathBounds)
+		ext.child, err = resolver(childHash)
+		if err != nil {
+			return
+		}
+		return &ext, nil
+	}
+	leftHash, rightHash := smt.th.parseNode(data)
+	inner := innerNode{persisted: true, digest: hash}
+	inner.leftChild, err = resolver(leftHash)
+	if err != nil {
+		return
+	}
+	inner.rightChild, err = resolver(rightHash)
+	if err != nil {
+		return
+	}
+	return &inner, nil
+}
+
+func (smt *SMT) Commit() (err error) {
+	// All orphans are persisted and have cached digests, so we don't need to check for null
+	for _, orphans := range smt.orphans {
+		for _, hash := range orphans {
+			if err = smt.nodes.Delete(hash); err != nil {
+				return
+			}
+		}
+	}
+	smt.orphans = nil
+	if err = smt.commit(smt.tree); err != nil {
+		return
+	}
+	smt.savedRoot = smt.Root()
+	return
+}
+
+func (smt *SMT) commit(node treeNode) error {
+	if node != nil && node.Persisted() {
+		return nil
+	}
+	switch n := node.(type) {
+	case *leafNode:
+		n.persisted = true
+	case *innerNode:
+		n.persisted = true
+		if err := smt.commit(n.leftChild); err != nil {
+			return err
+		}
+		if err := smt.commit(n.rightChild); err != nil {
+			return err
+		}
+	case *extensionNode:
+		n.persisted = true
+		if err := smt.commit(n.child); err != nil {
+			return err
+		}
+	default:
+		return nil
+	}
+	data := smt.serialize(node)
+	return smt.nodes.Set(smt.hashNode(node), data)
+}
+
+func (smt *SMT) Root() []byte {
+	return smt.hashNode(smt.tree)
+}
+
+func (smt *SMT) addOrphan(orphans *[][]byte, node treeNode) {
+	if node.Persisted() {
+		*orphans = append(*orphans, node.CachedDigest())
+	}
+}
+
+func (node *leafNode) Persisted() bool      { return node.persisted }
+func (node *innerNode) Persisted() bool     { return node.persisted }
+func (node *lazyNode) Persisted() bool      { return true }
+func (node *extensionNode) Persisted() bool { return node.persisted }
+
+func (node *leafNode) CachedDigest() []byte      { return node.digest }
+func (node *innerNode) CachedDigest() []byte     { return node.digest }
+func (node *lazyNode) CachedDigest() []byte      { return node.digest }
+func (node *extensionNode) CachedDigest() []byte { return node.digest }
+
+func (inner *innerNode) setDirty() {
+	inner.persisted = false
+	inner.digest = nil
+}
+
+func (ext *extensionNode) length() int { return int(ext.pathBounds[1] - ext.pathBounds[0]) }
+
+func (ext *extensionNode) setDirty() {
+	ext.persisted = false
+	ext.digest = nil
+}
+
+// Returns length of matching prefix, and whether it's a full match
+func (ext *extensionNode) match(path []byte, depth int) (int, bool) {
+	if depth != ext.pathStart() {
+		panic("depth != path_begin")
+	}
+	for i := ext.pathStart(); i < ext.pathEnd(); i++ {
+		if getPathBit(ext.path, i) != getPathBit(path, i) {
+			return i - ext.pathStart(), false
+		}
+	}
+	return ext.length(), true
+}
+
+func (ext *extensionNode) commonPrefix(path []byte) int {
+	count := 0
+	for i := ext.pathStart(); i < ext.pathEnd(); i++ {
+		if getPathBit(ext.path, i) != getPathBit(path, i) {
+			break
+		}
+		count++
+	}
+	return count
+}
+
+func (ext *extensionNode) pathStart() int { return int(ext.pathBounds[0]) }
+func (ext *extensionNode) pathEnd() int   { return int(ext.pathBounds[1]) }
+
+// Splits the node in-place; returns replacement node, child node at the split, and split depth
+func (ext *extensionNode) split(path []byte, depth int) (treeNode, *treeNode, int) {
+	if depth != ext.pathStart() {
+		panic("depth != path_begin")
+	}
+	index := ext.pathStart()
+	var myBit, branchBit int
+	for ; index < ext.pathEnd(); index++ {
+		myBit = getPathBit(ext.path, index)
+		branchBit = getPathBit(path, index)
+		if myBit != branchBit {
+			break
+		}
+	}
+	if index == ext.pathEnd() {
+		return ext, &ext.child, index
+	}
+
+	child := ext.child
+	var branch innerNode
+	var head treeNode
+	var tail *treeNode
+	if myBit == left {
+		tail = &branch.leftChild
+	} else {
+		tail = &branch.rightChild
+	}
+
+	// Split at first bit: chain starts with new node
+	if index == ext.pathStart() {
+		head = &branch
+		ext.pathBounds[0]++ // Shrink the extension from front
+		if ext.length() == 0 {
+			*tail = child
+		} else {
+			*tail = ext
+		}
+	} else {
+		// Split inside: chain ends at index
+		head = ext
+		ext.child = &branch
+		if index == ext.pathEnd()-1 {
+			*tail = child
+		} else {
+			*tail = &extensionNode{
+				path:       ext.path,
+				pathBounds: [2]byte{byte(index + 1), ext.pathBounds[1]},
+				child:      child,
+			}
+		}
+		ext.pathBounds[1] = byte(index)
+	}
+	var b treeNode = &branch
+	return head, &b, index
+}
+
+func (ext *extensionNode) expand() treeNode {
+	last := ext.child
+	for i := ext.pathEnd() - 1; i >= ext.pathStart(); i-- {
+		var next innerNode
+		if getPathBit(ext.path, i) == left {
+			next.leftChild = last
+		} else {
+			next.rightChild = last
+		}
+		last = &next
+	}
+	return last
 }

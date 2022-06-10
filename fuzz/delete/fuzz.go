@@ -17,15 +17,16 @@ func Fuzz(data []byte) int {
 		return -1
 	}
 
-	smn, smv := smt.NewSimpleMap(), smt.NewSimpleMap()
-	tree := smt.NewSparseMerkleTree(smn, smv, sha256.New())
+	smn := smt.NewSimpleMap()
+	tree := smt.NewSMT(smn, sha256.New())
 	for i := 0; i < len(splits)-1; i += 2 {
 		key, value := splits[i], splits[i+1]
 		tree.Update(key, value)
 	}
 
 	deleteKey := splits[len(splits)-1]
-	newRoot, err := tree.Delete(deleteKey)
+	err := tree.Delete(deleteKey)
+	newRoot := tree.Root()
 	if err != nil {
 		return 0
 	}

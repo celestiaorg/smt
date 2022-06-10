@@ -13,8 +13,8 @@ func Fuzz(input []byte) int {
 	if len(input) < 100 {
 		return 0
 	}
-	smn, smv := smt.NewSimpleMap(), smt.NewSimpleMap()
-	tree := smt.NewSparseMerkleTree(smn, smv, sha256.New())
+	smn := smt.NewSimpleMap()
+	tree := smt.NewSMT(smn, sha256.New())
 	r := bytes.NewReader(input)
 	var keys [][]byte
 	key := func() []byte {
@@ -46,8 +46,6 @@ func Fuzz(input []byte) int {
 			tree.Delete(key())
 		case Prove:
 			tree.Prove(key())
-		case Has:
-			tree.Has(key())
 		}
 	}
 	return 1
@@ -60,7 +58,6 @@ const (
 	Update
 	Delete
 	Prove
-	Has
 	Noop
 )
 

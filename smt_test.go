@@ -1,616 +1,388 @@
 package smt
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"hash"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// Test base case tree update operations with a few keys.
-func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
+func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...Option) *SMTWithStorage {
+	return &SMTWithStorage{
+		SparseMerkleTree: NewSMT(nodes, hasher, options...),
+		preimages:        preimages,
+	}
+}
+
+func TestTreeUpdateBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+	lazy := NewSMT(smn, sha256.New())
+	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
 	var value []byte
 	var has bool
 	var err error
 
 	// Test getting an empty key.
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting empty key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get default value when getting empty key")
-	}
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, defaultValue, value)
+
 	has, err = smt.Has([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when checking presence of empty key: %v", err)
-	}
-	if has {
-		t.Error("did not get 'false' when checking presence of empty key")
-	}
+	require.NoError(t, err)
+	require.False(t, has)
 
 	// Test updating the empty key.
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+
 	has, err = smt.Has([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when checking presence of non-empty key: %v", err)
-	}
-	if !has {
-		t.Error("did not get 'true' when checking presence of non-empty key")
-	}
+	require.NoError(t, err)
+	require.True(t, has)
 
 	// Test updating the non-empty key.
-	_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
-	if err != nil {
-		t.Errorf("returned error when updating non-empty key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
+	err = smt.Update([]byte("testKey"), []byte("testValue2"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue2"), value)
 
 	// Test updating a second empty key where the path for both keys share the
 	// first 2 bits (when using SHA256).
-	_, err = smt.Update([]byte("foo"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty second key: %v", err)
-	}
-	value, err = smt.Get([]byte("foo"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty second key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty second key")
-	}
+	err = smt.Update([]byte("foo"), []byte("testValue"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("foo"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
 
 	// Test updating a third empty key.
-	_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty third key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey2"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty third key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty third key")
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
+	err = smt.Update([]byte("testKey2"), []byte("testValue"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("testKey2"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue2"), value)
+
+	require.NoError(t, lazy.Commit())
 
 	// Test that a tree can be imported from a MapStore.
-	smt2 := ImportSparseMerkleTree(smn, smv, sha256.New(), smt.Root())
-	value, err = smt2.Get([]byte("testKey"))
-	if err != nil {
-		t.Error("returned error when getting non-empty key")
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
+	lazy = ImportSMT(smn, sha256.New(), smt.Root())
+	require.NoError(t, err)
+	smt = &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue2"), value)
+
+	value, err = smt.GetValue([]byte("foo"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+
+	value, err = smt.GetValue([]byte("testKey2"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
 }
 
-// Test known tree ops
-func TestSparseMerkleTreeKnown(t *testing.T) {
-	h := newDummyHasher(sha256.New())
+// Test base case tree delete operations with a few keys.
+func TestTreeDeleteBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, h)
+	lazy := NewSMT(smn, sha256.New())
+	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
+	rootEmpty := smt.Root()
+
+	// Testing inserting, deleting a key, and inserting it again.
+	err := smt.Update([]byte("testKey"), []byte("testValue"))
+	require.NoError(t, err)
+
+	root1 := smt.Root()
+	err = smt.Delete([]byte("testKey"))
+	require.NoError(t, err)
+
+	value, err := smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, defaultValue, value, "getting deleted key")
+
+	has, err := smt.Has([]byte("testKey"))
+	require.NoError(t, err)
+	require.False(t, has, "checking existernce of deleted key")
+
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+	require.Equal(t, root1, smt.Root(), "re-inserting key after deletion")
+
+	// Test inserting and deleting a second key.
+	err = smt.Update([]byte("testKey2"), []byte("testValue"))
+	require.NoError(t, err)
+
+	err = smt.Delete([]byte("testKey2"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("testKey2"))
+	require.NoError(t, err)
+	require.Equal(t, defaultValue, value, "getting deleted key")
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+	require.Equal(t, root1, smt.Root(), "after deleting second key")
+
+	// Test inserting and deleting a different second key, when the the first 2
+	// bits of the path for the two keys in the tree are the same (when using SHA256).
+	err = smt.Update([]byte("foo"), []byte("testValue"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("foo"))
+	require.NoError(t, err)
+
+	err = smt.Delete([]byte("foo"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("foo"))
+	require.NoError(t, err)
+	require.Equal(t, defaultValue, value, "getting deleted key")
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+	require.Equal(t, root1, smt.Root(), "after deleting second key")
+
+	// Testing inserting, deleting a key, and inserting it again
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
+	require.NoError(t, err)
+
+	root1 = smt.Root()
+	err = smt.Delete([]byte("testKey"))
+	require.NoError(t, err)
+
+	// Fail to delete an absent key, but leave tree in a valid state
+	err = smt.Delete([]byte("testKey"))
+	require.Error(t, err)
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, defaultValue, value, "getting deleted key")
+
+	has, err = smt.Has([]byte("testKey"))
+	require.NoError(t, err)
+	require.False(t, has, "checking existernce of deleted key")
+	require.Equal(t, rootEmpty, smt.Root())
+
+	err = smt.Update([]byte("testKey"), []byte("testValue"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue([]byte("testKey"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue"), value)
+	require.Equal(t, root1, smt.Root(), "re-inserting key after deletion")
+}
+
+// Test tree ops with known paths
+func TestTreeKnownPath(t *testing.T) {
+	ph := dummyPathHasher{32}
+	smn, smv := NewSimpleMap(), NewSimpleMap()
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
-	baseKey := make([]byte, h.Size()+4)
-	key1 := make([]byte, h.Size()+4)
-	copy(key1, baseKey)
-	key1[4] = byte(0b00000000)
-	key2 := make([]byte, h.Size()+4)
-	copy(key2, baseKey)
-	key2[4] = byte(0b01000000)
-	key3 := make([]byte, h.Size()+4)
-	copy(key3, baseKey)
-	key3[4] = byte(0b10000000)
-	key4 := make([]byte, h.Size()+4)
-	copy(key4, baseKey)
-	key4[4] = byte(0b11000000)
-	key5 := make([]byte, h.Size()+4)
-	copy(key5, baseKey)
-	key5[4] = byte(0b11010000)
+	baseKey := make([]byte, ph.PathSize())
+	keys := make([][]byte, 7)
+	for i, _ := range keys {
+		keys[i] = make([]byte, ph.PathSize())
+		copy(keys[i], baseKey)
+	}
+	keys[0][0] = byte(0b00000000)
+	keys[1][0] = byte(0b00100000)
+	keys[2][0] = byte(0b10000000)
+	keys[3][0] = byte(0b11000000)
+	keys[4][0] = byte(0b11010000)
+	keys[5][0] = byte(0b11100000)
+	keys[6][0] = byte(0b11110000)
 
-	_, err = smt.Update(key1, []byte("testValue1"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	_, err = smt.Update(key2, []byte("testValue2"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	_, err = smt.Update(key3, []byte("testValue3"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	_, err = smt.Update(key4, []byte("testValue4"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	_, err = smt.Update(key5, []byte("testValue5"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
+	err = smt.Update(keys[0], []byte("testValue1"))
+	require.NoError(t, err)
+	err = smt.Update(keys[1], []byte("testValue2"))
+	require.NoError(t, err)
+	err = smt.Update(keys[2], []byte("testValue3"))
+	require.NoError(t, err)
+	err = smt.Update(keys[3], []byte("testValue4"))
+	require.NoError(t, err)
+	err = smt.Update(keys[4], []byte("testValue5"))
+	require.NoError(t, err)
+	err = smt.Update(keys[5], []byte("testValue6"))
+	require.NoError(t, err)
 
-	value, err = smt.Get(key1)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue1"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.Get(key2)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.Get(key3)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue3"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.Get(key4)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue4"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.Get(key5)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue5"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
+	value, err = smt.GetValue(keys[0])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue1"), value)
 
-	proof1, _ := smt.Prove(key1)
-	proof2, _ := smt.Prove(key2)
-	proof3, _ := smt.Prove(key3)
-	proof4, _ := smt.Prove(key4)
-	proof5, _ := smt.Prove(key5)
-	dsmst := NewDeepSparseMerkleSubTree(NewSimpleMap(), NewSimpleMap(), h, smt.Root())
-	err = dsmst.AddBranch(proof1, key1, []byte("testValue1"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof2, key2, []byte("testValue2"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof3, key3, []byte("testValue3"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof4, key4, []byte("testValue4"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
-	err = dsmst.AddBranch(proof5, key5, []byte("testValue5"))
-	if err != nil {
-		t.Errorf("returned error when adding branch to deep subtree: %v", err)
-	}
+	value, err = smt.GetValue(keys[1])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue2"), value)
+
+	value, err = smt.GetValue(keys[2])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue3"), value)
+
+	value, err = smt.GetValue(keys[3])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue4"), value)
+
+	err = smt.Delete(keys[3])
+	require.NoError(t, err)
+
+	value, err = smt.GetValue(keys[4])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue5"), value)
+
+	value, err = smt.GetValue(keys[5])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue6"), value)
+
+	// Fail to delete an absent key with a leaf where it would be
+	err = smt.Delete(keys[6])
+	require.Error(t, err)
+	// Key at would-be position is still accessible
+	value, err = smt.GetValue(keys[5])
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue6"), value)
 }
 
 // Test tree operations when two leafs are immediate neighbors.
-func TestSparseMerkleTreeMaxHeightCase(t *testing.T) {
-	h := newDummyHasher(sha256.New())
+func TestTreeMaxHeightCase(t *testing.T) {
+	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, h)
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
 	var value []byte
 	var err error
 
 	// Make two neighboring keys.
-	//
-	// The dummy hash function expects keys to prefixed with four bytes of 0,
-	// which will cause it to return the preimage itself as the digest, without
-	// the first four bytes.
-	key1 := make([]byte, h.Size()+4)
+	// The dummy hash function will return the preimage itself as the digest.
+	key1 := make([]byte, ph.PathSize())
+	key2 := make([]byte, ph.PathSize())
 	rand.Read(key1)
-	key1[0], key1[1], key1[2], key1[3] = byte(0), byte(0), byte(0), byte(0)
-	key1[h.Size()+4-1] = byte(0)
-	key2 := make([]byte, h.Size()+4)
 	copy(key2, key1)
 	// We make key2's least significant bit different than key1's
-	key2[h.Size()+4-1] = byte(1)
+	key1[ph.PathSize()-1] = byte(0)
+	key2[ph.PathSize()-1] = byte(1)
 
-	_, err = smt.Update(key1, []byte("testValue1"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	_, err = smt.Update(key2, []byte("testValue2"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
+	err = smt.Update(key1, []byte("testValue1"))
+	require.NoError(t, err)
 
-	value, err = smt.Get(key1)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue1"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	value, err = smt.Get(key2)
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue2"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
+	err = smt.Update(key2, []byte("testValue2"))
+	require.NoError(t, err)
+
+	value, err = smt.GetValue(key1)
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue1"), value)
+
+	value, err = smt.GetValue(key2)
+	require.NoError(t, err)
+	require.Equal(t, []byte("testValue2"), value)
 
 	proof, err := smt.Prove(key1)
-	if err != nil {
-		t.Errorf("returned error when proving key: %v", err)
-	}
-	if len(proof.SideNodes) != 256 {
-		t.Errorf("unexpected proof size")
-	}
-}
-
-// Test base case tree delete operations with a few keys.
-func TestSparseMerkleTreeDeleteBasic(t *testing.T) {
-	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSparseMerkleTree(smn, smv, sha256.New())
-
-	// Testing inserting, deleting a key, and inserting it again.
-	_, err := smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	root1 := smt.Root()
-	_, err = smt.Update([]byte("testKey"), defaultValue)
-	if err != nil {
-		t.Errorf("returned error when deleting key: %v", err)
-	}
-	value, err := smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting deleted key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get default value when getting deleted key")
-	}
-	has, err := smt.Has([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when checking existence of deleted key: %v", err)
-	}
-	if has {
-		t.Error("returned 'true' when checking existernce of deleted key")
-	}
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	if !bytes.Equal(root1, smt.Root()) {
-		t.Error("tree root is not as expected after re-inserting key after deletion")
-	}
-
-	// Test inserting and deleting a second key.
-	_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty second key: %v", err)
-	}
-	_, err = smt.Update([]byte("testKey2"), defaultValue)
-	if err != nil {
-		t.Errorf("returned error when deleting key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey2"))
-	if err != nil {
-		t.Errorf("returned error when getting deleted key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get default value when getting deleted key")
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	if !bytes.Equal(root1, smt.Root()) {
-		t.Error("tree root is not as expected after deleting second key")
-	}
-
-	// Test inserting and deleting a different second key, when the the first 2
-	// bits of the path for the two keys in the tree are the same (when using SHA256).
-	_, err = smt.Update([]byte("foo"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("unable to update key: %v", err)
-	}
-
-	value, err = smt.Get([]byte("foo"))
-	if err != nil {
-		t.Errorf("returned error when updating empty second key: %v", err)
-	}
-	_, err = smt.Update([]byte("foo"), defaultValue)
-	if err != nil {
-		t.Errorf("returned error when deleting key: %v", err)
-	}
-	value, err = smt.Get([]byte("foo"))
-	if err != nil {
-		t.Errorf("returned error when getting deleted key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get default value when getting deleted key")
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	if !bytes.Equal(root1, smt.Root()) {
-		t.Error("tree root is not as expected after deleting second key")
-	}
-
-	// Testing inserting, deleting a key, and inserting it again, using Delete
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	root1 = smt.Root()
-	_, err = smt.Delete([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when deleting key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting deleted key: %v", err)
-	}
-	if !bytes.Equal(defaultValue, value) {
-		t.Error("did not get default value when getting deleted key")
-	}
-	has, err = smt.Has([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when checking existence of deleted key: %v", err)
-	}
-	if has {
-		t.Error("returned 'true' when checking existernce of deleted key")
-	}
-	_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-	if err != nil {
-		t.Errorf("returned error when updating empty key: %v", err)
-	}
-	value, err = smt.Get([]byte("testKey"))
-	if err != nil {
-		t.Errorf("returned error when getting non-empty key: %v", err)
-	}
-	if !bytes.Equal([]byte("testValue"), value) {
-		t.Error("did not get correct value when getting non-empty key")
-	}
-	if !bytes.Equal(root1, smt.Root()) {
-		t.Error("tree root is not as expected after re-inserting key after deletion")
-	}
-
-}
-
-// dummyHasher is a dummy hasher for tests, where the digest of keys is equivalent to the preimage.
-type dummyHasher struct {
-	baseHasher hash.Hash
-	data       []byte
-}
-
-func newDummyHasher(baseHasher hash.Hash) hash.Hash {
-	return &dummyHasher{
-		baseHasher: baseHasher,
-	}
-}
-
-func (h *dummyHasher) Write(data []byte) (int, error) {
-	h.data = append(h.data, data...)
-	return len(data), nil
-}
-
-func (h *dummyHasher) Sum(prefix []byte) []byte {
-	preimage := make([]byte, len(h.data))
-	copy(preimage, h.data)
-	preimage = append(prefix, preimage...)
-
-	var digest []byte
-	// Keys should be prefixed with four bytes of value 0.
-	if bytes.Equal(preimage[:4], []byte{0, 0, 0, 0}) && len(preimage) == h.Size()+4 {
-		digest = preimage[4:]
-	} else {
-		h.baseHasher.Write(preimage)
-		digest = h.baseHasher.Sum(nil)
-		h.baseHasher.Reset()
-	}
-
-	return digest
-}
-
-func (h *dummyHasher) Reset() {
-	h.data = nil
-}
-
-func (h *dummyHasher) Size() int {
-	return h.baseHasher.Size()
-}
-
-func (h *dummyHasher) BlockSize() int {
-	return h.Size()
+	require.NoError(t, err)
+	require.Equal(t, 256, len(proof.SideNodes), "unexpected proof size")
 }
 
 func TestOrphanRemoval(t *testing.T) {
 	var smn, smv *SimpleMap
-	var smt *SparseMerkleTree
+	var impl *SMT
+	var smt *SMTWithStorage
 	var err error
-	nodeCount := func() int {
+
+	nodeCount := func(t *testing.T) int {
+		require.NoError(t, impl.Commit())
 		return len(smn.m)
 	}
-
 	setup := func() {
 		smn, smv = NewSimpleMap(), NewSimpleMap()
-		smt = NewSparseMerkleTree(smn, smv, sha256.New())
-		_, err = smt.Update([]byte("testKey"), []byte("testValue"))
-		if err != nil {
-			t.Errorf("returned error when updating empty key: %v", err)
-		}
-		// only root and value mapping
-		if 1 != nodeCount() {
-			t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
-		}
+		impl = NewSMT(smn, sha256.New())
+		smt = &SMTWithStorage{SparseMerkleTree: impl, preimages: smv}
+
+		err = smt.Update([]byte("testKey"), []byte("testValue"))
+		require.NoError(t, err)
+		require.Equal(t, 1, nodeCount(t)) // only root node
 	}
 
 	t.Run("delete 1", func(t *testing.T) {
 		setup()
-		_, err = smt.Delete([]byte("testKey"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
-		}
-		if 0 != nodeCount() {
-			t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
-		}
+		err = smt.Delete([]byte("testKey"))
+		require.NoError(t, err)
+		require.Equal(t, 0, nodeCount(t))
 	})
 
 	t.Run("overwrite 1", func(t *testing.T) {
 		setup()
-		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
-		}
-		// Overwritten value should be pruned
-		if 1 != nodeCount() {
-			t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
-		}
+		err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		require.NoError(t, err)
+		require.Equal(t, 1, nodeCount(t))
 	})
 
 	type testCase struct {
-		newKey string
-		count  int
+		keys  []string
+		count int
 	}
+	// sha256(testKey)  = 0001...
+	// sha256(testKey2) = 1000... common prefix = 0; 1 root + 2 leaf = 3 nodes
+	// sha256(foo)      = 0010... common prefix = 2; 1 root + 2 inner + 2 leaf = 5 nodes
 	cases := []testCase{
-		{"testKey2", 3}, // common prefix = 0, root + 2 leaves
-		{"foo", 5},      // common prefix = 2, root + 2 node branch + 2 leaves
+		{[]string{"testKey2"}, 3},
+		{[]string{"foo"}, 4},
+		{[]string{"testKey2", "foo"}, 6},
+		{[]string{"a", "b", "c", "d", "e"}, 14},
 	}
-
-	t.Run("delete multiple", func(t *testing.T) {
-		for _, tc := range cases {
-			setup()
-			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if tc.count != nodeCount() {
-				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
-			}
-			_, err = smt.Delete([]byte("testKey"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 1 != nodeCount() {
-				t.Errorf("expected 1 nodes after deletion, got: %d", nodeCount())
-			}
-			_, err = smt.Delete([]byte(tc.newKey))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 0 != nodeCount() {
-				t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
-			}
-		}
-	})
 
 	t.Run("overwrite and delete", func(t *testing.T) {
 		setup()
-		_, err = smt.Update([]byte("testKey"), []byte("testValue2"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
-		}
-		if 1 != nodeCount() {
-			t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
-		}
-		_, err = smt.Delete([]byte("testKey"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
-		}
-		if 0 != nodeCount() {
-			t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
-		}
+		err = smt.Update([]byte("testKey"), []byte("testValue2"))
+		require.NoError(t, err)
+		require.Equal(t, 1, nodeCount(t))
 
-		for _, tc := range cases {
+		err = smt.Delete([]byte("testKey"))
+		require.NoError(t, err)
+		require.Equal(t, 0, nodeCount(t))
+
+		for tci, tc := range cases {
 			setup()
-			_, err = smt.Update([]byte(tc.newKey), []byte("testValue2"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
+			for _, key := range tc.keys {
+				err = smt.Update([]byte(key), []byte("testValue2"))
+				require.NoError(t, err, tci)
 			}
-			if tc.count != nodeCount() {
-				t.Errorf("expected 1 nodes after insertion, got: %d", nodeCount())
-			}
-			_, err = smt.Update([]byte(tc.newKey), []byte("testValue3"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if tc.count != nodeCount() {
-				t.Errorf("expected %d nodes after insertion, got: %d", tc.count, nodeCount())
-			}
-			_, err = smt.Delete([]byte("testKey"))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 1 != nodeCount() {
-				t.Errorf("expected 1 nodes after deletion, got: %d", nodeCount())
-			}
-			_, err = smt.Delete([]byte(tc.newKey))
-			if err != nil {
-				t.Errorf("returned error when updating non-empty key: %v", err)
-			}
-			if 0 != nodeCount() {
-				t.Errorf("expected 0 nodes after deletion, got: %d", nodeCount())
-			}
+			require.Equal(t, tc.count, nodeCount(t), tci)
 
-		}
-	})
+			// Overwrite doesn't change count
+			for _, key := range tc.keys {
+				err = smt.Update([]byte(key), []byte("testValue3"))
+				require.NoError(t, err, tci)
+			}
+			require.Equal(t, tc.count, nodeCount(t), tci)
 
-	t.Run("delete duplicate value", func(t *testing.T) {
-		setup()
-		_, err = smt.Update([]byte("testKey2"), []byte("testValue"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
-		}
-		_, err = smt.Delete([]byte("testKey"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
-		}
-		_, err = smt.Delete([]byte("testKey2"))
-		if err != nil {
-			t.Errorf("returned error when updating non-empty key: %v", err)
+			// Deletion removes all nodes except root
+			for _, key := range tc.keys {
+				err = smt.Delete([]byte(key))
+				require.NoError(t, err, tci)
+			}
+			require.Equal(t, 1, nodeCount(t), tci)
+
+			// Deleting and re-inserting a persisted node doesn't change count
+			require.NoError(t, smt.Delete([]byte("testKey")))
+			require.NoError(t, smt.Update([]byte("testKey"), []byte("testValue")))
+			require.Equal(t, 1, nodeCount(t), tci)
 		}
 	})
 }
