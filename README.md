@@ -6,6 +6,12 @@ A Go library that implements a Sparse Merkle tree for a key-value map. The tree 
 [![codecov](https://codecov.io/gh/celestiaorg/smt/branch/master/graph/badge.svg?token=U3GGEDSA94)](https://codecov.io/gh/celestiaorg/smt)
 [![GoDoc](https://godoc.org/github.com/celestiaorg/smt?status.svg)](https://godoc.org/github.com/celestiaorg/smt)
 
+## Installation
+
+```bash
+go get github.com/celestiaorg/smt@master
+```
+
 ## Example
 
 ```go
