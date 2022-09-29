@@ -12,15 +12,20 @@ var (
 )
 
 var _ PathHasher = (*pathHasher)(nil)
-var _ ValueHasher = (*treeHasher)(nil)
+var _ ValueHasher = (*valueHasher)(nil)
 
+// PathHasher defines how key inputs are hashed to produce tree paths.
 type PathHasher interface {
+	// Path hashes a key (preimage) and returns a tree path (digest).
 	Path([]byte) []byte
+	// PathSize returns the length (in bytes) of digests produced by this hasher.
 	PathSize() int
 }
 
+// ValueHasher defines how value data is hashed to produce leaf data.
 type ValueHasher interface {
-	digest([]byte) []byte
+	// hashValue hashes value data to produce the digest stored in leaf node.
+	hashValue([]byte) []byte
 }
 
 type treeHasher struct {
@@ -28,6 +33,9 @@ type treeHasher struct {
 	zeroValue []byte
 }
 type pathHasher struct {
+	treeHasher
+}
+type valueHasher struct {
 	treeHasher
 }
 
@@ -43,6 +51,10 @@ func (ph *pathHasher) Path(key []byte) []byte {
 
 func (ph *pathHasher) PathSize() int {
 	return ph.hasher.Size()
+}
+
+func (vh *valueHasher) hashValue(data []byte) []byte {
+	return vh.digest(data)
 }
 
 func (th *treeHasher) digest(data []byte) []byte {

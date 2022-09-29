@@ -42,7 +42,7 @@ type BaseSMT struct {
 func newBaseSMT(hasher hash.Hash) BaseSMT {
 	smt := BaseSMT{th: *newTreeHasher(hasher)}
 	smt.ph = &pathHasher{smt.th}
-	smt.vh = &smt.th
+	smt.vh = &valueHasher{smt.th}
 	return smt
 }
 
@@ -52,7 +52,7 @@ func (smt *BaseSMT) digestValue(data []byte) []byte {
 	if smt.vh == nil {
 		return data
 	}
-	return smt.vh.digest(data)
+	return smt.vh.hashValue(data)
 }
 
 func (smt *BaseSMT) serialize(node treeNode) (data []byte) {
