@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	right = 1
+	right = 1 // ASK(reviewer): Are we only dealing with binary trees?
 )
 
 var (
@@ -63,9 +63,9 @@ func (smt *SparseMerkleTree) setRoot(root []byte) {
 	smt.root = root
 }
 
-// DISCUSS: Why is the depth of the tree the size of the hash in bits?
-//          Per JMT, it should be depending on the `k-ary` of the tree and the size of the hash.
-//          E.g. if we are using a 256 bit hasher, the MAX depth is logk(256)
+// ASK(reviewer): Why is the depth of the tree the size of the hash in bits?
+//                Per JMT, it should be depending on the `k-ary` of the tree and the size of the hash.
+//                E.g. if we are using a 256 bit hasher, the MAX depth is logk(256)
 func (smt *SparseMerkleTree) depth() int {
 	return smt.th.pathSize() * 8
 }
@@ -237,15 +237,16 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 		actualPath, oldValueHash = smt.th.parseLeaf(oldLeafData)
 		commonPrefixCount = countCommonPrefix(path, actualPath)
 	}
+	// ASK(reviewer): I don't fully understand why the # of bits is the max depth - depends on the k-ary of the tree
 	if commonPrefixCount != smt.depth() {
+		// TODO: Need to understand / visualize the business logic here too
 		if getBitAtFromMSB(path, commonPrefixCount) == right {
 			currentHash, currentData = smt.th.digestNode(pathNodes[0], currentData)
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, pathNodes[0])
 		}
 
-		err := smt.nodes.Set(currentHash, currentData)
-		if err != nil {
+		if err := smt.nodes.Set(currentHash, currentData); err != nil {
 			return nil, err
 		}
 
@@ -259,10 +260,12 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 		if err := smt.nodes.Delete(pathNodes[0]); err != nil {
 			return nil, err
 		}
+		// TODO: Need to understand / visualize the different between path & pathNodes
 		if err := smt.values.Delete(path); err != nil {
 			return nil, err
 		}
 	}
+
 	// All remaining path nodes are orphaned
 	for i := 1; i < len(pathNodes); i++ {
 		if err := smt.nodes.Delete(pathNodes[i]); err != nil {
@@ -315,12 +318,12 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 //  - Array of path nodes
 //  - The leaf data; note that if the leaf is a placeholder, the leaf data is nil.
 //  - The sibling data; ASK(reviewer): should this not be an array?
-func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSiblingData bool) ([][]byte, [][]byte, []byte, []byte, error) {
+func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte, getSiblingData bool) (sideNodes, pathNodes [][]byte, nodeData, siblingData []byte, err error) {
 	// Side nodes for the path. Nodes are inserted in reverse order, then the
 	// slice is reversed at the end.
 	smtDepth := smt.depth()
-	sideNodes := make([][]byte, 0, smtDepth) // ASK(reviewer): this should be a function of the k-ary of the tree, not the depth
-	pathNodes := make([][]byte, 0, smtDepth)
+	sideNodes = make([][]byte, 0, smtDepth) // ASK(reviewer): this should be a function of the k-ary of the tree, not the depth
+	pathNodes = make([][]byte, 0, smtDepth)
 	pathNodes = append(pathNodes, root)
 
 	if bytes.Equal(root, smt.th.placeholder()) {
@@ -339,7 +342,6 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 
 	var nodeHash []byte
 	var sideNode []byte
-	var siblingData []byte
 
 	for i := 0; i < smtDepth; i++ {
 		leftNode, rightNode := smt.th.parseNode(currentData)
@@ -376,7 +378,11 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 			return nil, nil, nil, nil, err
 		}
 	}
-	return reverseByteSlices(sideNodes), reverseByteSlices(pathNodes), currentData, siblingData, nil
+
+	sideNodes = reverseByteSlices(sideNodes)
+	pathNodes = reverseByteSlices(pathNodes)
+
+	return sideNodes, pathNodes, currentData, siblingData, nil
 }
 
 // Prove generates a Merkle proof for a key against the current root.
