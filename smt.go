@@ -58,20 +58,19 @@ func (smt *SparseMerkleTree) Root() []byte {
 	return smt.root
 }
 
-// ASK(reviewer): Should this function be exposed at all?
 // Sets the root of the tree.
-func (smt *SparseMerkleTree) SetRoot(root []byte) {
+func (smt *SparseMerkleTree) SetRoot(root []byte) { // ASK(reviewer): Should this function be exposed at all?
 	smt.root = root
 }
 
-// ASK(reviewer): Why is the depth of the tree the size of the hash in bits?
-//               Per JMT, it should be depending on the `k-ary` of the tree and the size of the hash.
-//               E.g. if we are using a 256 bit hasher, the MAX depth is logk(256)
+// DISCUSS: Why is the depth of the tree the size of the hash in bits?
+//          Per JMT, it should be depending on the `k-ary` of the tree and the size of the hash.
+//          E.g. if we are using a 256 bit hasher, the MAX depth is logk(256)
 func (smt *SparseMerkleTree) depth() int {
 	return smt.th.pathSize() * 8
 }
 
-// `Get`` gets the value of a key from the tree.
+// Gets the value of a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 	// Get tree's root
 	root := smt.Root()
@@ -98,15 +97,15 @@ func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 	return nil, err
 }
 
-// `Has` returns true if the value at the given key is non-default, false otherwise.
+// Returns true if the value at the given key is non-default, false otherwise.
 func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
-	val, err := smt.Get(key)
-	return !bytes.Equal(defaultValue, val), err
+	value, err := smt.Get(key)
+	return !bytes.Equal(defaultValue, value), err
 }
 
-// `Update` sets a new value for a key in the tree, and returns the new root of the tree.
+// Sets a new value for a key in the tree, and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
-	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
+	newRoot, err := smt.updateForRoot(key, value, smt.Root())
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +113,8 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	return newRoot, nil
 }
 
-// ASK(reviewer): Should this function be exposed at all?
-// `UpdateForRoot` sets a new value for a key in the tree given a specific root, and returns the new root.
-func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
+// `updateForRoot` sets a new value for a key in the tree given a specific root, and returns the new root.
+func (smt *SparseMerkleTree) updateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
 	path := smt.th.path(key)
 	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, root, false)
 	if err != nil {
@@ -149,7 +147,7 @@ func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
 // `DeleteForRoot` deletes a value from tree at a specific root. It returns the new root of the tree.
 // ASK(reviewer): Why is this function exported?
 func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
-	return smt.UpdateForRoot(key, defaultValue, root)
+	return smt.updateForRoot(key, defaultValue, root)
 }
 
 func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
