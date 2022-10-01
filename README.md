@@ -59,3 +59,30 @@ Run `make` to see all the options available
 
 [libra whitepaper]: https://diem-developers-components.netlify.app/papers/the-diem-blockchain/2020-05-26.pdf
 [jmt whitepaper]: https://developers.diem.com/papers/jellyfish-merkle-tree/2021-01-14.pdf
+
+### [Delete me later] personal checklist
+
+- [x] ├── LICENSE
+- [x] ├── Makefile
+- [x] ├── README.md
+- [ ] ├── bench_test.go
+- [ ] ├── bulk_test.go
+- [ ] ├── deepsubtree.go
+- [ ] ├── deepsubtree_test.go
+- [ ] ├── fuzz
+- [ ] │   ├── delete
+- [ ] │   │   └── fuzz.go
+- [ ] │   └── fuzz.go
+- [x] ├── go.mod
+- [x] ├── go.sum
+- [ ] ├── mapstore.go
+- [ ] ├── mapstore_test.go
+- [ ] ├── options.go
+- [ ] ├── oss-fuzz-build.sh
+- [ ] ├── proofs.go
+- [ ] ├── proofs_test.go
+- [x] ├── smt.go
+- [ ] ├── smt_test.go
+- [x] ├── treehasher.go
+- [x] ├── treehasher_test.go
+- [x] └── utils.go
