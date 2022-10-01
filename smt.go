@@ -214,17 +214,17 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes, pathNod
 	return currentHash, nil
 }
 
-func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
+func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
 	valueHash := smt.th.digest(value)
 	currentHash, currentData := smt.th.digestLeaf(path, valueHash)
 	if err := smt.nodes.Set(currentHash, currentData); err != nil {
 		return nil, err
 	}
-	currentData = currentHash
+	currentData = currentHash // ASK(REVIEWER): Again, trying to understand this logic
 
 	// If the leaf node that sibling nodes lead to has a different actual path
 	// than the leaf node being updated, we need to create an intermediate node
-	// with this leaf node and the new leaf node as children.
+	// with this leaf node and the new leaf nodes as children.
 	//
 	// First, get the number of bits that the paths of the two leaf nodes share
 	// in common as a prefix.

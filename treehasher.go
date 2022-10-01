@@ -6,7 +6,8 @@ import (
 )
 
 // TODO: Need to document the difference between `data`, `value`, `hash`, and `path`.`
-
+// 	- It seems that `data` is simply `valueHash` determined using the `digest` function.
+//
 var (
 	leafPrefix = []byte{0} // prefix used for the path of each leaf in the three
 	nodePrefix = []byte{1} // prefix used for the path of each node in the three

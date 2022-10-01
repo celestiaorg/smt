@@ -25,21 +25,18 @@ func countSetBits(data []byte) int {
 	return count
 }
 
-func countCommonPrefix(data1 []byte, data2 []byte) int {
-	count := 0
-	for i := 0; i < len(data1)*8; i++ {
-		if getBitAtFromMSB(data1, i) == getBitAtFromMSB(data2, i) {
-			count++
-		} else {
+func countCommonPrefix(data1, data2 []byte) int {
+	i := 0
+	for i = 0; i < len(data1)*8; i++ {
+		if getBitAtFromMSB(data1, i) != getBitAtFromMSB(data2, i) {
 			break
 		}
 	}
-	return count
+	return i
 }
 
 func emptyBytes(length int) []byte {
-	b := make([]byte, length)
-	return b
+	return make([]byte, length)
 }
 
 func reverseByteSlices(slices [][]byte) [][]byte {
