@@ -21,3 +21,8 @@ test_all:
 ## Run all the ^TestSparseMerkleTree unit tests
 test_smt:
 	go test -v -count=1 -run TestSparseMerkleTree ./...
+
+.PHONY: test_th
+## Run all the ^TestTreeHasher unit tests
+test_th:
+	go test -v -count=1 -run TestTreeHasher ./...
