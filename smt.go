@@ -144,12 +144,6 @@ func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
 	return smt.Update(key, defaultValue)
 }
 
-// `deleteForRoot` deletes a value from tree at a specific root. It returns the new root of the tree.
-// ASK(reviewer): Why is this function exported?
-func (smt *SparseMerkleTree) deleteForRoot(key, root []byte) ([]byte, error) {
-	return smt.updateForRoot(key, defaultValue, root)
-}
-
 func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
 	// Checking if the first node of the path (i.e. the root) is a placeholder
 	if bytes.Equal(pathNodes[0], smt.th.placeholder()) {
