@@ -144,17 +144,18 @@ func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
 	return smt.Update(key, defaultValue)
 }
 
-func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
+func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
 	// Checking if the first node of the path (i.e. the root) is a placeholder
 	if bytes.Equal(pathNodes[0], smt.th.placeholder()) {
-		// This key is already empty as it is a placeholder; return an error.
 		return nil, errKeyAlreadyEmpty
 	}
-	actualPath, _ := smt.th.parseLeaf(oldLeafData)
-	if !bytes.Equal(path, actualPath) {
-		// This key is already empty as a different key was found its place; return an error.
+
+	oldPath, _ := smt.th.parseLeaf(oldLeafData)
+	if !bytes.Equal(path, oldPath) {
+		// The node path to the old leaf does not exist, which means the key is already empty
 		return nil, errKeyAlreadyEmpty
 	}
+
 	// All nodes above the deleted leaf are now orphaned
 	for _, node := range pathNodes {
 		if err := smt.nodes.Delete(node); err != nil {
@@ -174,7 +175,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 			if smt.th.isLeaf(sideNodeValue) {
 				// This is the leaf sibling that needs to be bubbled up the tree.
 				currentHash = sideNode
-				currentData = sideNode
+				currentData = sideNode // ASK(REVIEWER): Why are we settings hash and data to the same value?
 				continue
 			} else {
 				// This is the node sibling that needs to be left in its place.
@@ -193,6 +194,8 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 			nonPlaceholderReached = true
 		}
 
+		// Determine if `currentData` is currently a left or right child.
+		// ASK(REVIEWER): Unclear how getting this specific bit determines the orientation of the tree
 		if getBitAtFromMSB(path, len(sideNodes)-1-i) == right {
 			currentHash, currentData = smt.th.digestNode(sideNode, currentData)
 		} else {
@@ -201,7 +204,7 @@ func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte
 		if err := smt.nodes.Set(currentHash, currentData); err != nil {
 			return nil, err
 		}
-		currentData = currentHash
+		currentData = currentHash // ASK(REVIEWER): Unclear why we're doing this
 	}
 
 	if currentHash == nil {
