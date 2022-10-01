@@ -26,3 +26,8 @@ test_smt:
 ## Run all the ^TestTreeHasher unit tests
 test_th:
 	go test -v -count=1 -run TestTreeHasher ./...
+
+.PHONY: test_ms
+## Run all the ^TestMapStore unit tests
+test_ms:
+	go test -v -count=1 -run TestMapStore ./...
