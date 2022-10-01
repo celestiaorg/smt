@@ -57,6 +57,7 @@ Run `make` to see all the options available
 - [ ] Use the `require` test module to simplify unit tests; can be done with a single clever regex find+replace
 - [ ] Create types for `sideNodes`, `root`, etc...
 - [ ] Add an interface for `SparseMerkleProof` so we can return nils and not access vars directly
+- [ ] Add an interface for `SparseMerkleTree` so it's clear how we should interact with it
 
 [libra whitepaper]: https://diem-developers-components.netlify.app/papers/the-diem-blockchain/2020-05-26.pdf
 [jmt whitepaper]: https://developers.diem.com/papers/jellyfish-merkle-tree/2021-01-14.pdf

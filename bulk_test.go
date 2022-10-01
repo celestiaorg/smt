@@ -21,7 +21,7 @@ func TestSparseMerkleTree(t *testing.T) {
 }
 
 // Test all tree operations in bulk, with specified ratio probabilities of insert, update and delete.
-func bulkOperations(t *testing.T, operations int, insert int, update int, delete int) {
+func bulkOperations(t *testing.T, operations, insert, update, delete int) (*SparseMerkleTree, *SimpleMap, *SimpleMap, map[string]string) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSparseMerkleTree(smn, smv, sha256.New())
 
@@ -74,12 +74,13 @@ func bulkOperations(t *testing.T, operations int, insert int, update int, delete
 			}
 		}
 
-		bulkCheckAll(t, smt, &kv)
+		bulkCheckAll(t, smt, kv)
 	}
+	return smt, smn, smv, kv
 }
 
-func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
-	for k, v := range *kv {
+func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv map[string]string) {
+	for k, v := range kv {
 		value, err := smt.Get([]byte(k))
 		if err != nil {
 			t.Errorf("error: %v", err)
@@ -110,7 +111,7 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv *map[string]string) {
 
 		// Check that the key is at the correct height in the tree.
 		largestCommonPrefix := 0
-		for k2, v2 := range *kv {
+		for k2, v2 := range kv {
 			if v2 == "" {
 				continue
 			}
