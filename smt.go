@@ -104,7 +104,7 @@ func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
 }
 
 // Sets a new value for a key in the tree, and returns the new root of the tree.
-func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
+func (smt *SparseMerkleTree) Update(key, value []byte) ([]byte, error) {
 	newRoot, err := smt.updateForRoot(key, value, smt.Root())
 	if err != nil {
 		return nil, err
@@ -113,8 +113,8 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	return newRoot, nil
 }
 
-// `updateForRoot` sets a new value for a key in the tree given a specific root, and returns the new root.
-func (smt *SparseMerkleTree) updateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
+// Internal helper for `Update`
+func (smt *SparseMerkleTree) updateForRoot(key, value, root []byte) ([]byte, error) {
 	path := smt.th.path(key)
 	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, root, false)
 	if err != nil {
@@ -139,14 +139,14 @@ func (smt *SparseMerkleTree) updateForRoot(key []byte, value []byte, root []byte
 	return newRoot, err
 }
 
-// `Delete`` deletes a value from tree. It returns the new root of the tree.
+// Deletes the key-value mapping from the tree and returns the new root
 func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
 	return smt.Update(key, defaultValue)
 }
 
-// `DeleteForRoot` deletes a value from tree at a specific root. It returns the new root of the tree.
+// `deleteForRoot` deletes a value from tree at a specific root. It returns the new root of the tree.
 // ASK(reviewer): Why is this function exported?
-func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
+func (smt *SparseMerkleTree) deleteForRoot(key, root []byte) ([]byte, error) {
 	return smt.updateForRoot(key, defaultValue, root)
 }
 
