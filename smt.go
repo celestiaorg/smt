@@ -116,7 +116,7 @@ func (smt *SparseMerkleTree) Update(key, value []byte) ([]byte, error) {
 // Internal helper for `Update`
 func (smt *SparseMerkleTree) updateForRoot(key, value, root []byte) ([]byte, error) {
 	path := smt.th.path(key)
-	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, root, false)
+	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, root)
 	if err != nil {
 		return nil, err
 	}
@@ -312,13 +312,8 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 	return currentHash, nil
 }
 
-// Get all the sibling nodes (i.e. sideNodes) for a given path from a given root.
-// Returns:
-//  - Array of sibling nodes
-//  - Array of path nodes
-//  - The leaf data; note that if the leaf is a placeholder, the leaf data is nil.
-//  - The sibling data; ASK(reviewer): should this not be an array?
-func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte, getSiblingData bool) (sideNodes, pathNodes [][]byte, nodeData, siblingData []byte, err error) {
+// Get all the side nodes (a.k.a. sibling nodes) for a given path from a given root.
+func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte) (sideNodes, pathNodes [][]byte, nodeData, sideNode []byte, err error) {
 	// Side nodes for the path. Nodes are inserted in reverse order, then the
 	// slice is reversed at the end.
 	smtDepth := smt.depth()
@@ -341,7 +336,6 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte, getSiblingData 
 	}
 
 	var nodeHash []byte
-	var sideNode []byte
 
 	for i := 0; i < smtDepth; i++ {
 		leftNode, rightNode := smt.th.parseNode(currentData)
@@ -372,17 +366,10 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte, getSiblingData 
 		}
 	}
 
-	if getSiblingData {
-		siblingData, err = smt.nodes.Get(sideNode)
-		if err != nil {
-			return nil, nil, nil, nil, err
-		}
-	}
-
 	sideNodes = reverseByteSlices(sideNodes)
 	pathNodes = reverseByteSlices(pathNodes)
 
-	return sideNodes, pathNodes, currentData, siblingData, nil
+	return sideNodes, pathNodes, currentData, sideNode, nil
 }
 
 // Prove generates a Merkle proof for a key against the current root.
@@ -419,9 +406,17 @@ func (smt *SparseMerkleTree) ProveUpdatableForRoot(key []byte, root []byte) (Spa
 
 func (smt *SparseMerkleTree) doProveForRoot(key []byte, root []byte, isUpdatable bool) (SparseMerkleProof, error) {
 	path := smt.th.path(key)
-	sideNodes, pathNodes, leafData, siblingData, err := smt.sideNodesForRoot(path, root, isUpdatable)
+	sideNodes, pathNodes, leafData, sideNode, err := smt.sideNodesForRoot(path, root)
 	if err != nil {
 		return SparseMerkleProof{}, err
+	}
+
+	var siblingData []byte
+	if isUpdatable {
+		siblingData, err = smt.nodes.Get(sideNode)
+		if err != nil {
+			return SparseMerkleProof{}, err
+		}
 	}
 
 	var nonEmptySideNodes [][]byte
