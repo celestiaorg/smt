@@ -37,7 +37,7 @@ func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Op
 		option(&smt)
 	}
 
-	smt.SetRoot(smt.th.placeholder())
+	smt.setRoot(smt.th.placeholder())
 
 	return &smt
 }
@@ -59,7 +59,7 @@ func (smt *SparseMerkleTree) Root() []byte {
 }
 
 // Sets the root of the tree.
-func (smt *SparseMerkleTree) SetRoot(root []byte) { // ASK(reviewer): Should this function be exposed at all?
+func (smt *SparseMerkleTree) setRoot(root []byte) {
 	smt.root = root
 }
 
@@ -109,7 +109,7 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	smt.SetRoot(newRoot)
+	smt.setRoot(newRoot)
 	return newRoot, nil
 }
 
