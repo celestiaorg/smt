@@ -5,9 +5,11 @@ import (
 	"hash"
 )
 
+// TODO: Need to document the difference between `data`, `value`, `hash`, and `path`.`
+
 var (
-	leafPrefix = []byte{0}
-	nodePrefix = []byte{1}
+	leafPrefix = []byte{0} // prefix used for the path of each leaf in the three
+	nodePrefix = []byte{1} // prefix used for the path of each node in the three
 )
 
 type treeHasher struct {
@@ -27,44 +29,41 @@ func (th *treeHasher) path(key []byte) []byte {
 }
 
 func (th *treeHasher) digest(data []byte) []byte {
+	// TODO: Need to add a lock inside of `treeHasher` to avoid race conditions here.
 	th.hasher.Write(data)
 	sum := th.hasher.Sum(nil)
 	th.hasher.Reset()
 	return sum
 }
 
-func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {
-	value := make([]byte, 0, len(leafPrefix)+len(path)+len(leafData))
+func (th *treeHasher) digestLeaf(path, data []byte) (hash, value []byte) {
+	value = make([]byte, 0, len(leafPrefix)+len(path)+len(data))
 	value = append(value, leafPrefix...)
 	value = append(value, path...)
-	value = append(value, leafData...)
+	value = append(value, data...)
 
 	return th.digest(value), value
 }
 
-func (th *treeHasher) parseLeaf(data []byte) ([]byte, []byte) {
-	return data[len(leafPrefix) : th.pathSize()+len(leafPrefix)], data[len(leafPrefix)+th.pathSize():]
+func (th *treeHasher) parseLeaf(value []byte) (path, data []byte) {
+	return value[len(leafPrefix) : th.pathSize()+len(leafPrefix)], value[len(leafPrefix)+th.pathSize():]
 }
 
 func (th *treeHasher) isLeaf(data []byte) bool {
 	return bytes.Equal(data[:len(leafPrefix)], leafPrefix)
 }
 
-func (th *treeHasher) digestNode(leftData []byte, rightData []byte) ([]byte, []byte) {
-	value := make([]byte, 0, len(nodePrefix)+len(leftData)+len(rightData))
+func (th *treeHasher) digestNode(leftData, rightData []byte) (hash, value []byte) {
+	value = make([]byte, 0, len(nodePrefix)+len(leftData)+len(rightData))
 	value = append(value, nodePrefix...)
 	value = append(value, leftData...)
 	value = append(value, rightData...)
 
-	th.hasher.Write(value)
-	sum := th.hasher.Sum(nil)
-	th.hasher.Reset()
-
-	return sum, value
+	return th.digest(value), value
 }
 
-func (th *treeHasher) parseNode(data []byte) ([]byte, []byte) {
-	return data[len(nodePrefix) : th.pathSize()+len(nodePrefix)], data[len(nodePrefix)+th.pathSize():]
+func (th *treeHasher) parseNode(value []byte) (path, data []byte) {
+	return value[len(nodePrefix) : th.pathSize()+len(nodePrefix)], value[len(nodePrefix)+th.pathSize():]
 }
 
 func (th *treeHasher) pathSize() int {
