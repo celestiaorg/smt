@@ -11,23 +11,26 @@ const (
 	right = 1
 )
 
-var defaultValue = []byte{}
+var (
+	// ASK(reviewer): rename to `emptySubtreeNode`?
+	defaultValue = make([]byte, 0)
 
-var errKeyAlreadyEmpty = errors.New("key already empty")
+	// errors
+	errKeyAlreadyEmpty = errors.New("key already empty")
+)
 
-// SparseMerkleTree is a Sparse Merkle tree.
 type SparseMerkleTree struct {
 	th            treeHasher
 	nodes, values MapStore
 	root          []byte
 }
 
-// NewSparseMerkleTree creates a new Sparse Merkle tree on an empty MapStore.
+// `Creates a new Sparse Merkle tree on an empty MapStore
 func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Option) *SparseMerkleTree {
 	smt := SparseMerkleTree{
 		th:     *newTreeHasher(hasher),
-		nodes:  nodes,
-		values: values,
+		nodes:  nodes,  // ASK(reviewer): there is no validation that this is empty. Should we check?
+		values: values, // ASK(reviewer): there is no validation that this is empty. Should we check?
 	}
 
 	for _, option := range options {
@@ -39,66 +42,69 @@ func NewSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, options ...Op
 	return &smt
 }
 
-// ImportSparseMerkleTree imports a Sparse Merkle tree from a non-empty MapStore.
+// `Imports a Sparse Merkle tree from a non-empty MapStore.
 func ImportSparseMerkleTree(nodes, values MapStore, hasher hash.Hash, root []byte) *SparseMerkleTree {
 	smt := SparseMerkleTree{
 		th:     *newTreeHasher(hasher),
-		nodes:  nodes,
-		values: values,
+		nodes:  nodes,  // ASK(reviewer): No validation that this corresponds to the root provided
+		values: values, // ASK(reviewer): No validation that this corresponds to the root provided
 		root:   root,
 	}
 	return &smt
 }
 
-// Root gets the root of the tree.
+// Returns the root of the tree.
 func (smt *SparseMerkleTree) Root() []byte {
 	return smt.root
 }
 
-// SetRoot sets the root of the tree.
+// ASK(reviewer): Should this function be exposed at all?
+// Sets the root of the tree.
 func (smt *SparseMerkleTree) SetRoot(root []byte) {
 	smt.root = root
 }
 
+// ASK(reviewer): Why is the depth of the tree the size of the hash in bits?
+//               Per JMT, it should be depending on the `k-ary` of the tree and the size of the hash.
+//               E.g. if we are using a 256 bit hasher, the MAX depth is logk(256)
 func (smt *SparseMerkleTree) depth() int {
 	return smt.th.pathSize() * 8
 }
 
-// Get gets the value of a key from the tree.
+// `Get`` gets the value of a key from the tree.
 func (smt *SparseMerkleTree) Get(key []byte) ([]byte, error) {
 	// Get tree's root
 	root := smt.Root()
 
+	// If the tree is empty, return the default value
 	if bytes.Equal(root, smt.th.placeholder()) {
-		// The tree is empty, return the default value.
 		return defaultValue, nil
 	}
 
+	// Retrieve the value based on the path
 	path := smt.th.path(key)
 	value, err := smt.values.Get(path)
-
-	if err != nil {
-		var invalidKeyError *InvalidKeyError
-
-		if errors.As(err, &invalidKeyError) {
-			// If key isn't found, return default value
-			return defaultValue, nil
-		} else {
-			// Otherwise percolate up any other error
-			return nil, err
-		}
+	if err == nil {
+		return value, nil
 	}
-	return value, nil
+
+	// If key isn't found, return default value
+	var invalidKeyError *InvalidKeyError
+	if errors.As(err, &invalidKeyError) {
+		return defaultValue, nil
+	}
+
+	// Otherwise percolate up any other error
+	return nil, err
 }
 
-// Has returns true if the value at the given key is non-default, false
-// otherwise.
+// `Has` returns true if the value at the given key is non-default, false otherwise.
 func (smt *SparseMerkleTree) Has(key []byte) (bool, error) {
 	val, err := smt.Get(key)
 	return !bytes.Equal(defaultValue, val), err
 }
 
-// Update sets a new value for a key in the tree, and sets and returns the new root of the tree.
+// `Update` sets a new value for a key in the tree, and returns the new root of the tree.
 func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	newRoot, err := smt.UpdateForRoot(key, value, smt.Root())
 	if err != nil {
@@ -108,12 +114,8 @@ func (smt *SparseMerkleTree) Update(key []byte, value []byte) ([]byte, error) {
 	return newRoot, nil
 }
 
-// Delete deletes a value from tree. It returns the new root of the tree.
-func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
-	return smt.Update(key, defaultValue)
-}
-
-// UpdateForRoot sets a new value for a key in the tree at a specific root, and returns the new root.
+// ASK(reviewer): Should this function be exposed at all?
+// `UpdateForRoot` sets a new value for a key in the tree given a specific root, and returns the new root.
 func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte) ([]byte, error) {
 	path := smt.th.path(key)
 	sideNodes, pathNodes, oldLeafData, _, err := smt.sideNodesForRoot(path, root, false)
@@ -132,7 +134,6 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 		if err := smt.values.Delete(path); err != nil {
 			return nil, err
 		}
-
 	} else {
 		// Insert or update operation.
 		newRoot, err = smt.updateWithSideNodes(path, value, sideNodes, pathNodes, oldLeafData)
@@ -140,12 +141,19 @@ func (smt *SparseMerkleTree) UpdateForRoot(key []byte, value []byte, root []byte
 	return newRoot, err
 }
 
-// DeleteForRoot deletes a value from tree at a specific root. It returns the new root of the tree.
+// `Delete`` deletes a value from tree. It returns the new root of the tree.
+func (smt *SparseMerkleTree) Delete(key []byte) ([]byte, error) {
+	return smt.Update(key, defaultValue)
+}
+
+// `DeleteForRoot` deletes a value from tree at a specific root. It returns the new root of the tree.
+// ASK(reviewer): Why is this function exported?
 func (smt *SparseMerkleTree) DeleteForRoot(key, root []byte) ([]byte, error) {
 	return smt.UpdateForRoot(key, defaultValue, root)
 }
 
 func (smt *SparseMerkleTree) deleteWithSideNodes(path []byte, sideNodes [][]byte, pathNodes [][]byte, oldLeafData []byte) ([]byte, error) {
+	// Checking if the first node of the path (i.e. the root) is a placeholder
 	if bytes.Equal(pathNodes[0], smt.th.placeholder()) {
 		// This key is already empty as it is a placeholder; return an error.
 		return nil, errKeyAlreadyEmpty
@@ -306,20 +314,22 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path []byte, value []byte, side
 	return currentHash, nil
 }
 
-// Get all the sibling nodes (sidenodes) for a given path from a given root.
-// Returns an array of sibling nodes, the leaf hash found at that path, the
-// leaf data, and the sibling data.
-//
-// If the leaf is a placeholder, the leaf data is nil.
+// Get all the sibling nodes (i.e. sideNodes) for a given path from a given root.
+// Returns:
+//  - Array of sibling nodes
+//  - Array of path nodes
+//  - The leaf data; note that if the leaf is a placeholder, the leaf data is nil.
+//  - The sibling data; ASK(reviewer): should this not be an array?
 func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSiblingData bool) ([][]byte, [][]byte, []byte, []byte, error) {
 	// Side nodes for the path. Nodes are inserted in reverse order, then the
 	// slice is reversed at the end.
-	sideNodes := make([][]byte, 0, smt.depth())
-	pathNodes := make([][]byte, 0, smt.depth()+1)
+	smtDepth := smt.depth()
+	sideNodes := make([][]byte, 0, smtDepth) // ASK(reviewer): this should be a function of the k-ary of the tree, not the depth
+	pathNodes := make([][]byte, 0, smtDepth)
 	pathNodes = append(pathNodes, root)
 
 	if bytes.Equal(root, smt.th.placeholder()) {
-		// If the root is a placeholder, there are no sidenodes to return.
+		// If the root is a placeholder, there are no sideNodes to return.
 		// Let the "actual path" be the input path.
 		return sideNodes, pathNodes, nil, nil, nil
 	}
@@ -328,17 +338,18 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path []byte, root []byte, getSibli
 	if err != nil {
 		return nil, nil, nil, nil, err
 	} else if smt.th.isLeaf(currentData) {
-		// If the root is a leaf, there are also no sidenodes to return.
+		// If the root is a leaf, there are no sideNodes to return.
 		return sideNodes, pathNodes, currentData, nil, nil
 	}
 
 	var nodeHash []byte
 	var sideNode []byte
 	var siblingData []byte
-	for i := 0; i < smt.depth(); i++ {
+
+	for i := 0; i < smtDepth; i++ {
 		leftNode, rightNode := smt.th.parseNode(currentData)
 
-		// Get sidenode depending on whether the path bit is on or off.
+		// Get sideNode depending on whether the path bit is on or off.
 		if getBitAtFromMSB(path, i) == right {
 			sideNode = leftNode
 			nodeHash = rightNode

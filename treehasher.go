@@ -5,12 +5,14 @@ import (
 	"hash"
 )
 
-var leafPrefix = []byte{0}
-var nodePrefix = []byte{1}
+var (
+	leafPrefix = []byte{0}
+	nodePrefix = []byte{1}
+)
 
 type treeHasher struct {
 	hasher    hash.Hash
-	zeroValue []byte
+	zeroValue []byte // ASK(reviewer): rename to `emptyNode`?
 }
 
 func newTreeHasher(hasher hash.Hash) *treeHasher {
@@ -20,15 +22,15 @@ func newTreeHasher(hasher hash.Hash) *treeHasher {
 	return &th
 }
 
+func (th *treeHasher) path(key []byte) []byte {
+	return th.digest(key)
+}
+
 func (th *treeHasher) digest(data []byte) []byte {
 	th.hasher.Write(data)
 	sum := th.hasher.Sum(nil)
 	th.hasher.Reset()
 	return sum
-}
-
-func (th *treeHasher) path(key []byte) []byte {
-	return th.digest(key)
 }
 
 func (th *treeHasher) digestLeaf(path []byte, leafData []byte) ([]byte, []byte) {

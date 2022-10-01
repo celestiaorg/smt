@@ -16,3 +16,8 @@ help:
 ## Run all the unit tests
 test_all:
 	go test -v -count=1 ./...
+
+.PHONY: test_smt
+## Run all the ^TestSparseMerkleTree unit tests
+test_smt:
+	go test -v -count=1 -run TestSparseMerkleTree ./...
