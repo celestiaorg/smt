@@ -282,7 +282,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 
 		if i-offsetOfSideNodes < 0 || sideNodes[i-offsetOfSideNodes] == nil {
 			if commonPrefixCount != smt.depth() && commonPrefixCount > smt.depth()-1-i {
-				// If there are no sidenodes at this height, but the number of
+				// If there are no sideNodes at this height, but the number of
 				// bits that the paths of the two leaf nodes share in common is
 				// greater than this depth, then we need to build up the tree
 				// to this depth with placeholder values at siblings.
@@ -299,12 +299,13 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 		} else {
 			currentHash, currentData = smt.th.digestNode(currentData, sideNode)
 		}
-		err := smt.nodes.Set(currentHash, currentData)
-		if err != nil {
+
+		if err := smt.nodes.Set(currentHash, currentData); err != nil {
 			return nil, err
 		}
 		currentData = currentHash
 	}
+
 	if err := smt.values.Set(path, value); err != nil {
 		return nil, err
 	}
@@ -330,17 +331,18 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte) (sideNodes, pat
 	currentData, err := smt.nodes.Get(root)
 	if err != nil {
 		return nil, nil, nil, nil, err
-	} else if smt.th.isLeaf(currentData) {
-		// If the root is a leaf, there are no sideNodes to return.
+	}
+	// If the root is a leaf, there are no sideNodes to return.
+	if smt.th.isLeaf(currentData) {
 		return sideNodes, pathNodes, currentData, nil, nil
 	}
 
 	var nodeHash []byte
-
 	for i := 0; i < smtDepth; i++ {
 		leftNode, rightNode := smt.th.parseNode(currentData)
 
 		// Get sideNode depending on whether the path bit is on or off.
+		// ASK(reviewer): This part is not documented well
 		if getBitAtFromMSB(path, i) == right {
 			sideNode = leftNode
 			nodeHash = rightNode
@@ -351,8 +353,8 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte) (sideNodes, pat
 		sideNodes = append(sideNodes, sideNode)
 		pathNodes = append(pathNodes, nodeHash)
 
+		// If the node is a placeholder, we've reached the end.
 		if bytes.Equal(nodeHash, smt.th.placeholder()) {
-			// If the node is a placeholder, we've reached the end.
 			currentData = nil
 			break
 		}
@@ -360,8 +362,9 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte) (sideNodes, pat
 		currentData, err = smt.nodes.Get(nodeHash)
 		if err != nil {
 			return nil, nil, nil, nil, err
-		} else if smt.th.isLeaf(currentData) {
-			// If the node is a leaf, we've reached the end.
+		}
+		// If the node is a leaf, we've reached the end.
+		if smt.th.isLeaf(currentData) {
 			break
 		}
 	}
