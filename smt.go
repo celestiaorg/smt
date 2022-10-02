@@ -20,9 +20,10 @@ var (
 )
 
 type SparseMerkleTree struct {
-	th            treeHasher
-	nodes, values MapStore
-	root          []byte
+	th     treeHasher
+	nodes  MapStore // mapping from `hash` -> `data`
+	values MapStore // mapping from `path` -> `value`
+	root   []byte
 }
 
 // `Creates a new Sparse Merkle tree on an empty MapStore
@@ -121,20 +122,19 @@ func (smt *SparseMerkleTree) updateForRoot(key, value, root []byte) ([]byte, err
 		return nil, err
 	}
 
-	var newRoot []byte
-	if bytes.Equal(value, defaultValue) {
-		// Delete operation.
-		newRoot, err = smt.deleteWithSideNodes(path, sideNodes, pathNodes, oldLeafData)
-		if errors.Is(err, errKeyAlreadyEmpty) {
-			// This key is already empty; return the old root.
-			return root, nil
-		}
-		if err := smt.values.Delete(path); err != nil {
-			return nil, err
-		}
-	} else {
-		// Insert or update operation.
-		newRoot, err = smt.updateWithSideNodes(path, value, sideNodes, pathNodes, oldLeafData)
+	// Insert or update operation.
+	if !bytes.Equal(value, defaultValue) {
+		return smt.updateWithSideNodes(path, value, sideNodes, pathNodes, oldLeafData)
+	}
+
+	// Delete operation.
+	newRoot, err := smt.deleteWithSideNodes(path, sideNodes, pathNodes, oldLeafData)
+	if errors.Is(err, errKeyAlreadyEmpty) {
+		// This key is already empty; return the old root.
+		return root, nil
+	}
+	if err := smt.values.Delete(path); err != nil {
+		return nil, err
 	}
 	return newRoot, err
 }
@@ -339,10 +339,15 @@ func (smt *SparseMerkleTree) sideNodesForRoot(path, root []byte) (sideNodes, pat
 
 	var nodeHash []byte
 	for i := 0; i < smtDepth; i++ {
+		// ASK(reviewer): This part is really confusing.
+		// 	1. `parseNode` returns (path, data)
+		// 	2. We interpret this return value at (leftNode, rightNode)
+		// 	3. We use these two values as (sideNode, nodeHash)
+		// 	4. We append these values to (sideNode, pathNode)
 		leftNode, rightNode := smt.th.parseNode(currentData)
 
 		// Get sideNode depending on whether the path bit is on or off.
-		// ASK(reviewer): This part is not documented well
+		// parseNodewer): This part is not documented well
 		if getBitAtFromMSB(path, i) == right {
 			sideNode = leftNode
 			nodeHash = rightNode
