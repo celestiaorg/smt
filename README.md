@@ -26,8 +26,8 @@ import (
 
 func main() {
     // Initialise 2 new key-value store to stores the nodes and values of the tree
-    nodeStore := smt.NewSimpleMap() // Mapping from hash -> data
-    valueStore := smt.NewSimpleMap() // Mapping from path -> value
+    nodeStore := smt.NewSimpleMap() // Mapping from hash -> data;
+    valueStore := smt.NewSimpleMap() // Mapping from node_path -> node_value; a path can be retrieved using the digest of the key
 
     // Initialise the smt
     tree := smt.NewSparseMerkleTree(nodeStore, valueStore, sha256.New())
@@ -58,6 +58,9 @@ Run `make` to see all the options available
 - [ ] Create types for `sideNodes`, `root`, etc...
 - [ ] Add an interface for `SparseMerkleProof` so we can return nils and not access vars directly
 - [ ] Add an interface for `SparseMerkleTree` so it's clear how we should interact with it
+- [ ] If we create an interface for `TreeHasher`, we can embed it in `SparseMerkleTree` and then avoid the need to write things like `smt.th.path(...)` everywhere and use `smt.path(...)` directly.
+- [ ] Consider splitting `smt.go` into `smt_ops.go` and `smt_proofs.go`
+- [ ] Functions like `sideNodesForRoot` and `updateWithSideNodes` need to be split into smaller more compartmentalized functions
 
 [libra whitepaper]: https://diem-developers-components.netlify.app/papers/the-diem-blockchain/2020-05-26.pdf
 [jmt whitepaper]: https://developers.diem.com/papers/jellyfish-merkle-tree/2021-01-14.pdf
