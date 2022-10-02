@@ -4,6 +4,7 @@ package smt
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"hash"
 )
 
@@ -237,8 +238,10 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 		actualPath, oldValueHash = smt.th.parseLeaf(oldLeafData)
 		commonPrefixCount = countCommonPrefix(path, actualPath)
 	}
+	fmt.Println("OLSH commonPrefixCount", commonPrefixCount)
 	// ASK(reviewer): I don't fully understand why the # of bits is the max depth - depends on the k-ary of the tree
 	if commonPrefixCount != smt.depth() {
+		fmt.Println("OLSH 1")
 		// TODO: Need to understand / visualize the business logic here too
 		if getBitAtFromMSB(path, commonPrefixCount) == right {
 			currentHash, currentData = smt.th.digestNode(pathNodes[0], currentData)
@@ -249,7 +252,6 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 		if err := smt.nodes.Set(currentHash, currentData); err != nil {
 			return nil, err
 		}
-
 		currentData = currentHash
 	} else if oldValueHash != nil {
 		// Short-circuit if the same value is being set
@@ -277,6 +279,7 @@ func (smt *SparseMerkleTree) updateWithSideNodes(path, value []byte, sideNodes, 
 	// Note: i-offsetOfSideNodes is the index into sideNodes[]
 	offsetOfSideNodes := smt.depth() - len(sideNodes)
 
+	fmt.Println("OLSH 3", offsetOfSideNodes)
 	for i := 0; i < smt.depth(); i++ {
 		var sideNode []byte
 

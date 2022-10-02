@@ -47,6 +47,12 @@ func (th *treeHasher) digest(data []byte) []byte {
 	return sum
 }
 
+// value: (prefix, path, userDataDigest)
+// Alternative interpretations of return value:
+// 	(hash, value)
+// 	(hash(value), value)
+// 	(valueHash, value)
+// 	(valueDigest, value)
 func (th *treeHasher) digestLeaf(path, data []byte) (hash, value []byte) {
 	value = make([]byte, 0, len(leafPrefix)+len(path)+len(data))
 	value = append(value, leafPrefix...)
