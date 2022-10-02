@@ -5,9 +5,19 @@ import (
 	"hash"
 )
 
-// TODO: Need to document the difference between `data`, `value`, `hash`, and `path`.`
-// 	- It seems that `data` is simply `valueHash` determined using the `digest` function.
-//
+// ASK(reviewer): Help clarify terminology:
+// - Terms used through the codebase: `data`, `value`, `hash`, `path`, `digest`
+// - Current understanding:
+//   - `data` is simply `valueHash` determined using the `digest` function.
+//   - `hash`` is synonymous to `digest`
+//   - Leaf `value`: (prefix, path, userDataDigest)
+//   - Node `value`: (prefix, leftData, rightData)
+
+// From the whitepaper:
+// 			Leaf node is a node that stores user value at the bottom of the tree. Besides the data, it also
+// 			contains the key used for querying the tree of the node and the digest of the data. The nibble
+// 			path field of a leaf node key must be a prefix of its key.
+
 var (
 	leafPrefix = []byte{0} // prefix used for the path of each leaf in the three
 	nodePrefix = []byte{1} // prefix used for the path of each node in the three
