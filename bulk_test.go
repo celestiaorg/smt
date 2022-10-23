@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Test all tree operations in bulk.
@@ -110,28 +112,36 @@ func bulkCheckAll(t *testing.T, smt *SparseMerkleTree, kv map[string]string) {
 		}
 
 		// Check that the key is at the correct height in the tree.
-		largestCommonPrefix := 0
-		for k2, v2 := range kv {
-			if v2 == "" {
-				continue
-			}
-			commonPrefix := countCommonPrefix(smt.th.path([]byte(k)), smt.th.path([]byte(k2)))
-			if commonPrefix != smt.depth() && commonPrefix > largestCommonPrefix {
-				largestCommonPrefix = commonPrefix
-			}
-		}
-		sideNodes, _, _, _, err := smt.sideNodesForRoot(smt.th.path([]byte(k)), smt.Root())
-		if err != nil {
-			t.Errorf("error: %v", err)
-		}
-		numSideNodes := 0
-		for _, v := range sideNodes {
-			if v != nil {
-				numSideNodes++
-			}
-		}
-		if numSideNodes != largestCommonPrefix+1 && (numSideNodes != 0 && largestCommonPrefix != 0) {
+		largestCommonPrefix := getLargestCommonPrefix(t, smt, kv, k)
+		numSideNodes := getNumSideNodes(t, smt, kv, k)
+		if (numSideNodes != largestCommonPrefix+1) && numSideNodes != 0 && largestCommonPrefix != 0 {
 			t.Error("leaf is at unexpected height")
 		}
 	}
+}
+
+func getNumSideNodes(t *testing.T, smt *SparseMerkleTree, kv map[string]string, key string) (numSideNodes int) {
+	path := smt.th.path([]byte(key))
+	sideNodes, _, _, _, err := smt.sideNodesForRoot(path, smt.Root())
+	require.NoError(t, err)
+	for _, v := range sideNodes {
+		if v != nil {
+			numSideNodes++
+		}
+	}
+	return
+}
+
+func getLargestCommonPrefix(_ *testing.T, smt *SparseMerkleTree, kv map[string]string, key string) (largestCommonPrefix int) {
+	path := smt.th.path([]byte(key))
+	for k, v := range kv {
+		if v == "" {
+			continue
+		}
+		commonPrefix := countCommonPrefix(path, smt.th.path([]byte(k)))
+		if commonPrefix != smt.depth() && commonPrefix > largestCommonPrefix {
+			largestCommonPrefix = commonPrefix
+		}
+	}
+	return
 }

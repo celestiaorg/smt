@@ -23,6 +23,12 @@ var (
 	nodePrefix = []byte{1} // prefix used for the path of each node in the three
 )
 
+// type Node struct {
+// 	isLeaf bool
+// 	hash   []byte
+// 	data   []byte
+// }
+
 type treeHasher struct {
 	hasher    hash.Hash
 	zeroValue []byte // ASK(reviewer): rename to `emptyNode`?
@@ -63,7 +69,9 @@ func (th *treeHasher) digestLeaf(path, data []byte) (hash, value []byte) {
 }
 
 func (th *treeHasher) parseLeaf(value []byte) (path, data []byte) {
-	return value[len(leafPrefix) : th.pathSize()+len(leafPrefix)], value[len(leafPrefix)+th.pathSize():]
+	path = value[len(leafPrefix) : th.pathSize()+len(leafPrefix)]
+	data = value[len(leafPrefix)+th.pathSize():]
+	return
 }
 
 func (th *treeHasher) isLeaf(data []byte) bool {
@@ -79,8 +87,10 @@ func (th *treeHasher) digestNode(leftData, rightData []byte) (hash, value []byte
 	return th.digest(value), value
 }
 
-func (th *treeHasher) parseNode(value []byte) (path, data []byte) {
-	return value[len(nodePrefix) : th.pathSize()+len(nodePrefix)], value[len(nodePrefix)+th.pathSize():]
+func (th *treeHasher) parseNode(value []byte) (leftData, rightData []byte) {
+	leftData = value[len(nodePrefix) : th.pathSize()+len(nodePrefix)]
+	rightData = value[len(nodePrefix)+th.pathSize():]
+	return
 }
 
 func (th *treeHasher) pathSize() int {
