@@ -82,7 +82,7 @@ Run `make` to see all the options available
 - [x] ├── go.sum
 - [x] ├── mapstore.go
 - [x] ├── mapstore_test.go
-- [ ] ├── options.go
+- [x] ├── options.go
 - [ ] ├── oss-fuzz-build.sh
 - [ ] ├── proofs.go
 - [ ] ├── proofs_test.go
