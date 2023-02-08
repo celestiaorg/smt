@@ -11,15 +11,15 @@ import (
 
 func NewSMTWithStorage(nodes, preimages MapStore, hasher hash.Hash, options ...Option) *SMTWithStorage {
 	return &SMTWithStorage{
-		SparseMerkleTree: NewSMT(nodes, hasher, options...),
-		preimages:        preimages,
+		SMT:       NewSparseMerkleTree(nodes, hasher, options...),
+		preimages: preimages,
 	}
 }
 
 func TestTreeUpdateBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	lazy := NewSMT(smn, sha256.New())
-	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
+	lazy := NewSparseMerkleTree(smn, sha256.New())
+	smt := &SMTWithStorage{SMT: lazy, preimages: smv}
 	var value []byte
 	var has bool
 	var err error
@@ -77,9 +77,9 @@ func TestTreeUpdateBasic(t *testing.T) {
 	require.NoError(t, lazy.Commit())
 
 	// Test that a tree can be imported from a MapStore.
-	lazy = ImportSMT(smn, sha256.New(), smt.Root())
+	lazy = ImportSparseMerkleTree(smn, sha256.New(), smt.Root())
 	require.NoError(t, err)
-	smt = &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
+	smt = &SMTWithStorage{SMT: lazy, preimages: smv}
 
 	value, err = smt.GetValue([]byte("testKey"))
 	require.NoError(t, err)
@@ -97,8 +97,8 @@ func TestTreeUpdateBasic(t *testing.T) {
 // Test base case tree delete operations with a few keys.
 func TestTreeDeleteBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	lazy := NewSMT(smn, sha256.New())
-	smt := &SMTWithStorage{SparseMerkleTree: lazy, preimages: smv}
+	lazy := NewSparseMerkleTree(smn, sha256.New())
+	smt := &SMTWithStorage{SMT: lazy, preimages: smv}
 	rootEmpty := smt.Root()
 
 	// Testing inserting, deleting a key, and inserting it again.
@@ -195,7 +195,7 @@ func TestTreeDeleteBasic(t *testing.T) {
 func TestTreeKnownPath(t *testing.T) {
 	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), WithPathHasher(ph))
 	var value []byte
 	var err error
 
@@ -266,7 +266,7 @@ func TestTreeKnownPath(t *testing.T) {
 func TestTreeMaxHeightCase(t *testing.T) {
 	ph := dummyPathHasher{32}
 	smn, smv := NewSimpleMap(), NewSimpleMap()
-	smt := NewSMTWithStorage(smn, smv, sha256.New(), SetPathHasher(ph))
+	smt := NewSMTWithStorage(smn, smv, sha256.New(), WithPathHasher(ph))
 	var value []byte
 	var err error
 
@@ -311,8 +311,8 @@ func TestOrphanRemoval(t *testing.T) {
 	}
 	setup := func() {
 		smn, smv = NewSimpleMap(), NewSimpleMap()
-		impl = NewSMT(smn, sha256.New())
-		smt = &SMTWithStorage{SparseMerkleTree: impl, preimages: smv}
+		impl = NewSparseMerkleTree(smn, sha256.New())
+		smt = &SMTWithStorage{SMT: impl, preimages: smv}
 
 		err = smt.Update([]byte("testKey"), []byte("testValue"))
 		require.NoError(t, err)

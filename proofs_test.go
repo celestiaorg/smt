@@ -19,7 +19,7 @@ func randomiseProof(proof SparseMerkleProof) SparseMerkleProof {
 }
 
 // Check that a non-compact proof is equivalent to the proof returned when it is compacted and de-compacted.
-func checkCompactEquivalence(t *testing.T, proof SparseMerkleProof, base *BaseSMT) {
+func checkCompactEquivalence(t *testing.T, proof SparseMerkleProof, base *TreeSpec) {
 	t.Helper()
 	compactedProof, err := CompactProof(proof, base)
 	if err != nil {

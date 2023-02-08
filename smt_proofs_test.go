@@ -18,7 +18,7 @@ func TestProofsBasic(t *testing.T) {
 
 	smn, smv = NewSimpleMap(), NewSimpleMap()
 	smt = NewSMTWithStorage(smn, smv, sha256.New())
-	base := smt.base()
+	base := smt.Spec()
 
 	// Generate and verify a proof on an empty key.
 	proof, err = smt.Prove([]byte("testKey3"))
@@ -90,7 +90,7 @@ func TestProofsBasic(t *testing.T) {
 func TestProofsSanityCheck(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSMTWithStorage(smn, smv, sha256.New())
-	base := smt.base()
+	base := smt.Spec()
 
 	smt.Update([]byte("testKey1"), []byte("testValue1"))
 	smt.Update([]byte("testKey2"), []byte("testValue2"))
@@ -100,7 +100,7 @@ func TestProofsSanityCheck(t *testing.T) {
 
 	// Case: invalid number of sidenodes.
 	proof, _ := smt.Prove([]byte("testKey1"))
-	sideNodes := make([][]byte, smt.base().depth()+1)
+	sideNodes := make([][]byte, smt.Spec().depth()+1)
 	for i := range sideNodes {
 		sideNodes[i] = proof.SideNodes[0]
 	}

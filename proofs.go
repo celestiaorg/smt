@@ -24,22 +24,22 @@ type SparseMerkleProof struct {
 	SiblingData []byte
 }
 
-func (proof *SparseMerkleProof) sanityCheck(base *BaseSMT) bool {
+func (proof *SparseMerkleProof) sanityCheck(spec *TreeSpec) bool {
 	// Do a basic sanity check on the proof, so that a malicious proof cannot
 	// cause the verifier to fatally exit (e.g. due to an index out-of-range
 	// error) or cause a CPU DoS attack.
 
 	// Check that the number of supplied sidenodes does not exceed the maximum possible.
-	if len(proof.SideNodes) > base.ph.PathSize()*8 ||
+	if len(proof.SideNodes) > spec.ph.PathSize()*8 ||
 
 		// Check that leaf data for non-membership proofs is a valid size.
-		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) < len(leafPrefix)+base.ph.PathSize()) {
+		(proof.NonMembershipLeafData != nil && len(proof.NonMembershipLeafData) < len(leafPrefix)+spec.ph.PathSize()) {
 		return false
 	}
 
 	// Check that all supplied sidenodes are the correct size.
 	for _, v := range proof.SideNodes {
-		if len(v) != base.th.hashSize() {
+		if len(v) != spec.th.hashSize() {
 			return false
 		}
 	}
@@ -49,7 +49,7 @@ func (proof *SparseMerkleProof) sanityCheck(base *BaseSMT) bool {
 		return true
 	}
 
-	siblingHash := hashSerialization(base, proof.SiblingData)
+	siblingHash := hashSerialization(spec, proof.SiblingData)
 	return bytes.Equal(proof.SideNodes[0], siblingHash)
 }
 
@@ -77,7 +77,7 @@ type SparseCompactMerkleProof struct {
 	SiblingData []byte
 }
 
-func (proof *SparseCompactMerkleProof) sanityCheck(base *BaseSMT) bool {
+func (proof *SparseCompactMerkleProof) sanityCheck(spec *TreeSpec) bool {
 	// Do a basic sanity check on the proof on the fields of the proof specific to
 	// the compact proof only.
 	//
@@ -85,7 +85,7 @@ func (proof *SparseCompactMerkleProof) sanityCheck(base *BaseSMT) bool {
 	// de-compacted proof should be executed.
 
 	// Compact proofs: check that NumSideNodes is within the right range.
-	if proof.NumSideNodes < 0 || proof.NumSideNodes > base.ph.PathSize()*8 ||
+	if proof.NumSideNodes < 0 || proof.NumSideNodes > spec.ph.PathSize()*8 ||
 
 		// Compact proofs: check that the length of the bit mask is as expected
 		// according to NumSideNodes.
@@ -101,15 +101,15 @@ func (proof *SparseCompactMerkleProof) sanityCheck(base *BaseSMT) bool {
 }
 
 // VerifyProof verifies a Merkle proof.
-func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, base *BaseSMT) bool {
-	result, _ := verifyProofWithUpdates(proof, root, key, value, base)
+func VerifyProof(proof SparseMerkleProof, root []byte, key []byte, value []byte, spec *TreeSpec) bool {
+	result, _ := verifyProofWithUpdates(proof, root, key, value, spec)
 	return result
 }
 
-func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, base *BaseSMT) (bool, [][][]byte) {
-	path := base.ph.Path(key)
+func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, value []byte, spec *TreeSpec) (bool, [][][]byte) {
+	path := spec.ph.Path(key)
 
-	if !proof.sanityCheck(base) {
+	if !proof.sanityCheck(spec) {
 		return false, nil
 	}
 
@@ -119,22 +119,22 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 	var currentHash, currentData []byte
 	if bytes.Equal(value, defaultValue) { // Non-membership proof.
 		if proof.NonMembershipLeafData == nil { // Leaf is a placeholder value.
-			currentHash = base.th.placeholder()
+			currentHash = spec.th.placeholder()
 		} else { // Leaf is an unrelated leaf.
-			actualPath, valueHash := parseLeaf(proof.NonMembershipLeafData, base.ph)
+			actualPath, valueHash := parseLeaf(proof.NonMembershipLeafData, spec.ph)
 			if bytes.Equal(actualPath, path) {
 				// This is not an unrelated leaf; non-membership proof failed.
 				return false, nil
 			}
-			currentHash, currentData = base.th.digestLeaf(actualPath, valueHash)
+			currentHash, currentData = spec.th.digestLeaf(actualPath, valueHash)
 
 			update := make([][]byte, 2)
 			update[0], update[1] = currentHash, currentData
 			updates = append(updates, update)
 		}
 	} else { // Membership proof.
-		valueHash := base.digestValue(value)
-		currentHash, currentData = base.th.digestLeaf(path, valueHash)
+		valueHash := spec.digestValue(value)
+		currentHash, currentData = spec.th.digestLeaf(path, valueHash)
 		update := make([][]byte, 2)
 		update[0], update[1] = currentHash, currentData
 		updates = append(updates, update)
@@ -142,13 +142,13 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 
 	// Recompute root.
 	for i := 0; i < len(proof.SideNodes); i++ {
-		node := make([]byte, base.th.hashSize())
+		node := make([]byte, spec.th.hashSize())
 		copy(node, proof.SideNodes[i])
 
 		if getPathBit(path, len(proof.SideNodes)-1-i) == left {
-			currentHash, currentData = base.th.digestNode(currentHash, node)
+			currentHash, currentData = spec.th.digestNode(currentHash, node)
 		} else {
-			currentHash, currentData = base.th.digestNode(node, currentHash)
+			currentHash, currentData = spec.th.digestNode(node, currentHash)
 		}
 
 		update := make([][]byte, 2)
@@ -160,26 +160,26 @@ func verifyProofWithUpdates(proof SparseMerkleProof, root []byte, key []byte, va
 }
 
 // VerifyCompactProof verifies a compacted Merkle proof.
-func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key, value []byte, base *BaseSMT) bool {
-	decompactedProof, err := DecompactProof(proof, base)
+func VerifyCompactProof(proof SparseCompactMerkleProof, root []byte, key, value []byte, spec *TreeSpec) bool {
+	decompactedProof, err := DecompactProof(proof, spec)
 	if err != nil {
 		return false
 	}
-	return VerifyProof(decompactedProof, root, key, value, base)
+	return VerifyProof(decompactedProof, root, key, value, spec)
 }
 
 // CompactProof compacts a proof, to reduce its size.
-func CompactProof(proof SparseMerkleProof, base *BaseSMT) (SparseCompactMerkleProof, error) {
-	if !proof.sanityCheck(base) {
+func CompactProof(proof SparseMerkleProof, spec *TreeSpec) (SparseCompactMerkleProof, error) {
+	if !proof.sanityCheck(spec) {
 		return SparseCompactMerkleProof{}, ErrBadProof
 	}
 
 	bitMask := make([]byte, int(math.Ceil(float64(len(proof.SideNodes))/float64(8))))
 	var compactedSideNodes [][]byte
 	for i := 0; i < len(proof.SideNodes); i++ {
-		node := make([]byte, base.th.hashSize())
+		node := make([]byte, spec.th.hashSize())
 		copy(node, proof.SideNodes[i])
-		if bytes.Equal(node, base.th.placeholder()) {
+		if bytes.Equal(node, spec.th.placeholder()) {
 			setPathBit(bitMask, i)
 		} else {
 			compactedSideNodes = append(compactedSideNodes, node)
@@ -196,8 +196,8 @@ func CompactProof(proof SparseMerkleProof, base *BaseSMT) (SparseCompactMerklePr
 }
 
 // DecompactProof decompacts a proof, so that it can be used for VerifyProof.
-func DecompactProof(proof SparseCompactMerkleProof, base *BaseSMT) (SparseMerkleProof, error) {
-	if !proof.sanityCheck(base) {
+func DecompactProof(proof SparseCompactMerkleProof, spec *TreeSpec) (SparseMerkleProof, error) {
+	if !proof.sanityCheck(spec) {
 		return SparseMerkleProof{}, ErrBadProof
 	}
 
@@ -205,7 +205,7 @@ func DecompactProof(proof SparseCompactMerkleProof, base *BaseSMT) (SparseMerkle
 	position := 0
 	for i := 0; i < proof.NumSideNodes; i++ {
 		if getPathBit(proof.BitMask, i) == 1 {
-			decompactedSideNodes[i] = base.th.placeholder()
+			decompactedSideNodes[i] = spec.th.placeholder()
 		} else {
 			decompactedSideNodes[i] = proof.SideNodes[position]
 			position++

@@ -39,7 +39,7 @@ func countCommonPrefix(data1, data2 []byte, from int) int {
 }
 
 // Used for verification of serialized proof data
-func hashSerialization(smt *BaseSMT, data []byte) []byte {
+func hashSerialization(smt *TreeSpec, data []byte) []byte {
 	if isExtension(data) {
 		pathBounds, path, childHash := parseExtension(data, smt.ph)
 		ext := extensionNode{path: path, child: &lazyNode{childHash}}

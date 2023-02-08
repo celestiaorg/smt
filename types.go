@@ -30,51 +30,54 @@ type SparseMerkleTree interface {
 	// Commit saves the tree's state to its persistent storage.
 	Commit() error
 
-	base() *BaseSMT
+	Spec() *TreeSpec
 }
 
-type BaseSMT struct {
+// TreeSpec defines the specification of a specific tree, including hash functions
+// for leaf paths and stored values, and max tree depth.
+type TreeSpec struct {
 	th treeHasher
 	ph PathHasher
 	vh ValueHasher
 }
 
-func newBaseSMT(hasher hash.Hash) BaseSMT {
-	smt := BaseSMT{th: *newTreeHasher(hasher)}
-	smt.ph = &pathHasher{smt.th}
-	smt.vh = &valueHasher{smt.th}
-	return smt
+func newTreeSpec(hasher hash.Hash) TreeSpec {
+	spec := TreeSpec{th: *newTreeHasher(hasher)}
+	spec.ph = &pathHasher{spec.th}
+	spec.vh = &valueHasher{spec.th}
+	return spec
 }
 
-func (smt *BaseSMT) base() *BaseSMT { return smt }
-func (smt *BaseSMT) depth() int     { return smt.ph.PathSize() * 8 }
-func (smt *BaseSMT) digestValue(data []byte) []byte {
-	if smt.vh == nil {
+func (spec *TreeSpec) Spec() *TreeSpec { return spec }
+
+func (spec *TreeSpec) depth() int { return spec.ph.PathSize() * 8 }
+func (spec *TreeSpec) digestValue(data []byte) []byte {
+	if spec.vh == nil {
 		return data
 	}
-	return smt.vh.hashValue(data)
+	return spec.vh.HashValue(data)
 }
 
-func (smt *BaseSMT) serialize(node treeNode) (data []byte) {
+func (spec *TreeSpec) serialize(node treeNode) (data []byte) {
 	switch n := node.(type) {
 	case *lazyNode:
 		panic("serialize(lazyNode)")
 	case *leafNode:
 		return encodeLeaf(n.path, n.valueHash)
 	case *innerNode:
-		lchild := smt.hashNode(n.leftChild)
-		rchild := smt.hashNode(n.rightChild)
+		lchild := spec.hashNode(n.leftChild)
+		rchild := spec.hashNode(n.rightChild)
 		return encodeInner(lchild, rchild)
 	case *extensionNode:
-		child := smt.hashNode(n.child)
+		child := spec.hashNode(n.child)
 		return encodeExtension(n.pathBounds, n.path, child)
 	}
 	return nil
 }
 
-func (smt *BaseSMT) hashNode(node treeNode) []byte {
+func (spec *TreeSpec) hashNode(node treeNode) []byte {
 	if node == nil {
-		return smt.th.placeholder()
+		return spec.th.placeholder()
 	}
 	var cache *[]byte
 	switch n := node.(type) {
@@ -86,12 +89,12 @@ func (smt *BaseSMT) hashNode(node treeNode) []byte {
 		cache = &n.digest
 	case *extensionNode:
 		if n.digest == nil {
-			n.digest = smt.hashNode(n.expand())
+			n.digest = spec.hashNode(n.expand())
 		}
 		return n.digest
 	}
 	if *cache == nil {
-		*cache = smt.th.digest(smt.serialize(node))
+		*cache = spec.th.digest(spec.serialize(node))
 	}
 	return *cache
 }

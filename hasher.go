@@ -24,8 +24,8 @@ type PathHasher interface {
 
 // ValueHasher defines how value data is hashed to produce leaf data.
 type ValueHasher interface {
-	// hashValue hashes value data to produce the digest stored in leaf node.
-	hashValue([]byte) []byte
+	// HashValue hashes value data to produce the digest stored in leaf node.
+	HashValue([]byte) []byte
 }
 
 type treeHasher struct {
@@ -53,7 +53,7 @@ func (ph *pathHasher) PathSize() int {
 	return ph.hasher.Size()
 }
 
-func (vh *valueHasher) hashValue(data []byte) []byte {
+func (vh *valueHasher) HashValue(data []byte) []byte {
 	return vh.digest(data)
 }
 

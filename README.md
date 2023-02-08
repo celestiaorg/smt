@@ -19,21 +19,21 @@ import (
 )
 
 func main() {
-	// Initialise two new key-value store to store the nodes and values of the tree
+	// Initialise two new key-value store to store the nodes of the tree
+	// (Note: the tree only stores hashed values, not raw value data)
 	nodeStore := smt.NewSimpleMap()
-	valueStore := smt.NewSimpleMap()
 	// Initialise the tree
-	tree := smt.NewSparseMerkleTree(nodeStore, valueStore, sha256.New())
+	tree := smt.NewSMT(nodeStore, sha256.New())
 
 	// Update the key "foo" with the value "bar"
-	_, _ = tree.Update([]byte("foo"), []byte("bar"))
+	_ = tree.Update([]byte("foo"), []byte("bar"))
 
 	// Generate a Merkle proof for foo=bar
 	proof, _ := tree.Prove([]byte("foo"))
 	root := tree.Root() // We also need the current tree root for the proof
 
 	// Verify the Merkle proof for foo=bar
-	if smt.VerifyProof(proof, root, []byte("foo"), []byte("bar"), sha256.New()) {
+	if smt.VerifyProof(proof, root, []byte("foo"), []byte("bar"), tree.Spec()) {
 		fmt.Println("Proof verification succeeded.")
 	} else {
 		fmt.Println("Proof verification failed.")

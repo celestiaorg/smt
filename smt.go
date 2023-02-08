@@ -34,7 +34,7 @@ type leafNode struct {
 // A compressed chain of singly-linked inner nodes
 type extensionNode struct {
 	path []byte
-	// Bit offsets into path slice defining actual path segment.
+	// Offsets into path slice of bounds defining actual path segment.
 	// Note: assumes path is <=256 bits
 	pathBounds [2]byte
 	// Child is always an inner node, or lazy.
@@ -49,7 +49,7 @@ type lazyNode struct {
 }
 
 type SMT struct {
-	BaseSMT
+	TreeSpec
 	nodes MapStore
 	// Last persisted root hash
 	savedRoot []byte
@@ -62,10 +62,10 @@ type SMT struct {
 // Hashes of persisted nodes deleted from tree
 type orphanNodes = [][]byte
 
-func NewSMT(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
+func NewSparseMerkleTree(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
 	smt := SMT{
-		BaseSMT: newBaseSMT(hasher),
-		nodes:   nodes,
+		TreeSpec: newTreeSpec(hasher),
+		nodes:    nodes,
 	}
 	for _, option := range options {
 		option(&smt)
@@ -73,8 +73,8 @@ func NewSMT(nodes MapStore, hasher hash.Hash, options ...Option) *SMT {
 	return &smt
 }
 
-func ImportSMT(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *SMT {
-	smt := NewSMT(nodes, hasher, options...)
+func ImportSparseMerkleTree(nodes MapStore, hasher hash.Hash, root []byte, options ...Option) *SMT {
+	smt := NewSparseMerkleTree(nodes, hasher, options...)
 	smt.tree = &lazyNode{root}
 	smt.savedRoot = root
 	return smt

@@ -98,14 +98,14 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.base()) {
+		if !VerifyProof(proof, smt.Root(), []byte(k), []byte(v), smt.Spec()) {
 			t.Fatalf("Merkle proof failed to verify (i=%d): %v", ki, []byte(k))
 		}
 		compactProof, err := ProveCompact([]byte(k), smt)
 		if err != nil {
 			t.Errorf("error: %v", err)
 		}
-		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.base()) {
+		if !VerifyCompactProof(compactProof, smt.Root(), []byte(k), []byte(v), smt.Spec()) {
 			t.Fatalf("Compact Merkle proof failed to verify (i=%d): %v", ki, []byte(k))
 		}
 
@@ -121,9 +121,9 @@ func bulkCheckAll(t *testing.T, smt *SMTWithStorage, kv []bulkop) {
 				continue
 			}
 
-			ph := smt.base().ph
+			ph := smt.Spec().ph
 			commonPrefix := countCommonPrefix(ph.Path([]byte(k)), ph.Path([]byte(k2)), 0)
-			if commonPrefix != smt.base().depth() && commonPrefix > largestCommonPrefix {
+			if commonPrefix != smt.Spec().depth() && commonPrefix > largestCommonPrefix {
 				largestCommonPrefix = commonPrefix
 			}
 		}

@@ -14,7 +14,7 @@ func Fuzz(input []byte) int {
 		return 0
 	}
 	smn := smt.NewSimpleMap()
-	tree := smt.NewSMT(smn, sha256.New())
+	tree := smt.NewSparseMerkleTree(smn, sha256.New())
 	r := bytes.NewReader(input)
 	var keys [][]byte
 	key := func() []byte {
