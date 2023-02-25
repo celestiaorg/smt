@@ -6,9 +6,9 @@ import (
 
 // MapStore is a key-value store.
 type MapStore interface {
-	Get(key []byte) ([]byte, error)     // Get gets the value for a key.
-	Set(key []byte, value []byte) error // Set updates the value for a key.
-	Delete(key []byte) error            // Delete deletes a key.
+	Get(key []byte) ([]byte, error) // Get gets the value for a key.
+	Set(key, value []byte) error    // Set updates the value for a key.
+	Delete(key []byte) error        // Delete deletes a key.
 }
 
 // InvalidKeyError is thrown when a key that does not exist is being accessed.
@@ -48,8 +48,7 @@ func (sm *SimpleMap) Set(key []byte, value []byte) error {
 
 // Delete deletes a key.
 func (sm *SimpleMap) Delete(key []byte) error {
-	_, ok := sm.m[string(key)]
-	if ok {
+	if _, ok := sm.m[string(key)]; ok {
 		delete(sm.m, string(key))
 		return nil
 	}
