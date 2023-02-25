@@ -6,26 +6,28 @@ import (
 	"testing"
 )
 
-func TestSimpleMap(t *testing.T) {
+func TestMapStoreSimpleMap(t *testing.T) {
 	sm := NewSimpleMap()
 	h := sha256.New()
+
 	var value []byte
 	var err error
 
 	h.Write([]byte("test"))
+	key := h.Sum(nil)
 
 	// Tests for Get.
-	_, err = sm.Get(h.Sum(nil))
+	_, err = sm.Get(key)
 	if err == nil {
 		t.Error("did not return an error when getting a non-existent key")
 	}
 
 	// Tests for Put.
-	err = sm.Set(h.Sum(nil), []byte("hello"))
+	err = sm.Set(key, []byte("hello"))
 	if err != nil {
 		t.Error("updating a key returned an error")
 	}
-	value, err = sm.Get(h.Sum(nil))
+	value, err = sm.Get(key)
 	if err != nil {
 		t.Error("getting a key returned an error")
 	}
@@ -34,11 +36,11 @@ func TestSimpleMap(t *testing.T) {
 	}
 
 	// Tests for Del.
-	err = sm.Delete(h.Sum(nil))
+	err = sm.Delete(key)
 	if err != nil {
 		t.Error("deleting a key returned an error")
 	}
-	_, err = sm.Get(h.Sum(nil))
+	_, err = sm.Get(key)
 	if err == nil {
 		t.Error("failed to delete key")
 	}

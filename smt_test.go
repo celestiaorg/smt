@@ -12,6 +12,7 @@ import (
 func TestSparseMerkleTreeUpdateBasic(t *testing.T) {
 	smn, smv := NewSimpleMap(), NewSimpleMap()
 	smt := NewSparseMerkleTree(smn, smv, sha256.New())
+
 	var value []byte
 	var has bool
 	var err error
@@ -467,7 +468,7 @@ func (h *dummyHasher) BlockSize() int {
 	return h.Size()
 }
 
-func TestOrphanRemoval(t *testing.T) {
+func TestSparseMerkleTreeOrphanRemoval(t *testing.T) {
 	var smn, smv *SimpleMap
 	var smt *SparseMerkleTree
 	var err error
